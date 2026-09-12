@@ -20,13 +20,43 @@ et se remplir de spores.
 | **Chrono Démogorgon** | 25 s, puis 20 s, puis 15 s. Zéro seconde = zéro gaufre. |
 | **Score en Eggo** | Parce que les points, c'est pour les gens qui n'ont pas de congélateur. |
 | **7 rangs** | De *Barb* (« personne n'a lancé d'avis de recherche ») à *Eleven*. |
-| **Sons synthétisés** | Arpèges, bips et sweeps générés à la volée en Web Audio. Aucun fichier audio. |
-| **Partage façon Wordle** | 🧇🧇🩸🧇 │ 🧇🧇🧇⏳ │ 🧇🩸🧇🧇 — copié en un clic. |
+| **Sons synthétisés** | Arpèges, bips, sweeps et carillons générés à la volée en Web Audio. Aucun fichier audio. |
+| **Partage façon Wordle** | 🧇🧇💀🧇 │ 🧇🧇🧇⏳ │ 🧇💀🧇🧇 — copié en un clic (ou via le partage natif du téléphone). |
 | **Saignements de nez** | À partir de 3 bonnes réponses d'affilée. C'est le prix du talent. |
-| **Easter eggs** | Tapez `011` hors quiz. Et le Konami code, évidemment. |
 
 30 questions en banque, 12 tirées au hasard à chaque partie : la rejouabilité est
 volontairement élevée.
+
+## Le mur parle
+
+Le mur d'alphabet n'est pas qu'un décor : **on peut taper ses lettres** (au doigt
+ou au clavier). Les lettres composées s'affichent sous le mur, et **six mots
+secrets** déclenchent quelque chose. Un compteur discret « Secrets du mur *n* / 6 »
+apparaît dès le premier trouvé, et la progression est conservée d'une visite à
+l'autre.
+
+Un des six mots ouvre le **Mode Monde à l'Envers**. Une fois débloqué, une bascule
+permanente apparaît sur l'écran d'accueil — plus besoin de réépeler quoi que ce
+soit. Dans ce mode :
+
+- les trois phases basculent dans une palette violette et la page penche davantage ;
+- **le chrono tombe à 15 s / 12 s / 10 s** ;
+- chaque question **arrive en miroir** puis se redresse ;
+- le score se compte en gouttes de sang, pas en gaufres ;
+- l'horloge de Vecna sonne à mi-parcours ;
+- le verdict porte un badge selon que vous en êtes revenu… ou pas.
+
+Autres œufs de Pâques, non comptabilisés : cinq tapes sur le titre, un appui sur
+le compteur de gaufres, `011` tapé hors quiz, le Konami code, et un rang secret
+réservé à ceux qui réussissent l'exploit de faire 0 sur 12.
+
+## Sur téléphone
+
+Pensé tactile d'abord : cibles de 44 px minimum, retour haptique (`navigator.vibrate`)
+sur les bonnes et mauvaises réponses, partage natif via `navigator.share`, effets
+`:hover` neutralisés sur tactile pour éviter les états collés, respect des encoches
+(`env(safe-area-inset-*)`), et une mise en page paysage dédiée qui passe les
+réponses sur deux colonnes pour tenir dans 390 px de haut.
 
 ## Technique
 
@@ -35,8 +65,8 @@ Zéro dépendance, zéro build, zéro tracker. Trois fichiers statiques :
 ```
 index.html
 assets/
-  styles.css     ← thèmes par phase, mur d'alphabet, animations
-  app.js         ← moteur de quiz, Web Audio, easter eggs
+  styles.css     ← thèmes par phase, mode Monde à l'Envers, mur, animations
+  app.js         ← moteur de quiz, Web Audio, secrets du mur, easter eggs
   questions.js   ← banque de questions + rangs
 ```
 
@@ -53,7 +83,9 @@ python -m http.server 8080
 ## Accessibilité
 
 - Navigation clavier complète (<kbd>1</kbd>–<kbd>4</kbd> pour répondre, <kbd>Entrée</kbd> pour continuer).
-- `prefers-reduced-motion` respecté : animations et inclinaison désactivées.
+- Les mots secrets se tapent aussi au clavier : le mur reste décoratif pour les
+  lecteurs d'écran (`aria-hidden`) sans priver personne des easter eggs.
+- `prefers-reduced-motion` respecté : animations, miroir et inclinaison désactivés.
 - Contrastes, `aria-live` sur les révélations, focus visibles.
 - Le son est **coupé par défaut** et ne démarre jamais sans clic.
 

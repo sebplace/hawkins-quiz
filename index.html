@@ -28,10 +28,10 @@
 <main id="app">
 
   <!-- ============ INTRO ============ -->
-  <section class="screen is-active" id="screen-intro" aria-labelledby="title">
+  <section class="screen is-active" id="screen-intro" aria-labelledby="brandTitle">
     <header class="brand">
       <p class="brand__kicker">Le test officieux du fan</p>
-      <h1 class="brand__title" id="title">
+      <h1 class="brand__title" id="brandTitle">
         <span class="brand__word">Hawkins</span>
         <span class="brand__word brand__word--sub">Quiz</span>
       </h1>
@@ -40,6 +40,12 @@
 
     <div class="wall" id="wall" aria-hidden="true"></div>
     <p class="wall__caption" id="wallCaption">Joyce a laissé un message.</p>
+
+    <button class="ud-toggle" id="udToggle" type="button" aria-pressed="false" hidden>
+      <span class="ud-toggle__dot"></span><span id="udLabel">Mode Monde à l'Envers</span>
+    </button>
+
+    <p class="secrets" id="secrets" hidden></p>
 
     <div class="intro__actions">
       <button class="btn btn--primary" id="btnStart" type="button">
@@ -52,9 +58,12 @@
 
     <ul class="rules">
       <li><b>12 questions</b> tirées au hasard parmi 30</li>
-      <li>Le décor s'assombrit à mesure que vous progressez&nbsp;: Hawkins → le labo → <i>le Monde à l'Envers</i></li>
-      <li>Le chrono raccourcit à chaque dimension. Zéro seconde = zéro gaufre</li>
-      <li>Clavier&nbsp;: touches <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd></li>
+      <li class="only-normal">Le décor s'assombrit à mesure que vous progressez&nbsp;: Hawkins → le labo → <i>le Monde à l'Envers</i></li>
+      <li class="only-normal">Le chrono raccourcit à chaque dimension. Zéro seconde = zéro gaufre</li>
+      <li class="only-ud">Trois strates, <b>aucune sortie</b>&nbsp;: Hawkins noyé → le labo mort → chez lui</li>
+      <li class="only-ud">Chrono réduit de moitié&nbsp;: <b>15 s, 12 s, 10 s</b>. Les questions arrivent à l'envers</li>
+      <li class="only-keys">Clavier&nbsp;: touches <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd></li>
+      <li class="rules__hint">Il paraît que le mur répond, si on lui parle.</li>
     </ul>
   </section>
 
@@ -66,9 +75,9 @@
         <span id="phaseName">Hawkins, 1983</span>
       </div>
       <div class="hud__progress" id="progress">Question 1 / 12</div>
-      <div class="hud__score" title="Gaufres Eggo">
-        <span class="eggo" aria-hidden="true">🧇</span><span id="score">0</span>
-      </div>
+      <button class="hud__score" id="scoreBtn" type="button" title="Gaufres Eggo">
+        <span class="eggo" id="scoreIcon" aria-hidden="true">🧇</span><span id="score">0</span>
+      </button>
     </div>
 
     <div class="timer" role="timer" aria-label="Temps restant">
@@ -93,6 +102,7 @@
     <div class="wall" id="wallResult" aria-hidden="true"></div>
     <h2 class="result__rank" id="rankName">…</h2>
     <p class="result__line" id="rankLine">…</p>
+    <p class="badge" id="badge" hidden></p>
     <p class="marks" id="marks" aria-label="Détail des réponses"></p>
 
     <div class="stats" id="stats"></div>
