@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hawkins Quiz — Testez votre niveau de fan</title>
+<meta name="description" content="Douze questions, trois dimensions et un Démogorgon chronométré. Testez votre maîtrise de Stranger Things. Projet de fan non officiel.">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#05060a">
+
+<meta property="og:title" content="Hawkins Quiz">
+<meta property="og:description" content="Douze questions, trois dimensions et un Démogorgon chronométré. Survivrez-vous au Monde à l'Envers ?">
+<meta property="og:type" content="website">
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#127851;</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rozha+One&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+
+<body class="phase-0">
+
+<div class="grain" aria-hidden="true"></div>
+<div class="spores" id="spores" aria-hidden="true"></div>
+<div class="vignette" aria-hidden="true"></div>
+
+<main id="app">
+
+  <!-- ============ INTRO ============ -->
+  <section class="screen is-active" id="screen-intro" aria-labelledby="title">
+    <header class="brand">
+      <p class="brand__kicker">Le test officieux du fan</p>
+      <h1 class="brand__title" id="title">
+        <span class="brand__word">Hawkins</span>
+        <span class="brand__word brand__word--sub">Quiz</span>
+      </h1>
+      <p class="brand__tag">Douze questions. Trois dimensions. Un Démogorgon qui compte les secondes.</p>
+    </header>
+
+    <div class="wall" id="wall" aria-hidden="true"></div>
+    <p class="wall__caption" id="wallCaption">Joyce a laissé un message.</p>
+
+    <div class="intro__actions">
+      <button class="btn btn--primary" id="btnStart" type="button">
+        <span>Entrer dans le sous-sol</span>
+      </button>
+      <button class="btn btn--ghost" id="btnSound" type="button" aria-pressed="false">
+        <span id="soundLabel">Son : coupé</span>
+      </button>
+    </div>
+
+    <ul class="rules">
+      <li><b>12 questions</b> tirées au hasard parmi 30</li>
+      <li>Le décor s'assombrit à mesure que vous progressez&nbsp;: Hawkins → le labo → <i>le Monde à l'Envers</i></li>
+      <li>Le chrono raccourcit à chaque dimension. Zéro seconde = zéro gaufre</li>
+      <li>Clavier&nbsp;: touches <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd></li>
+    </ul>
+  </section>
+
+  <!-- ============ QUIZ ============ -->
+  <section class="screen" id="screen-quiz" aria-labelledby="qText">
+    <div class="hud">
+      <div class="hud__phase">
+        <span class="dot" id="phaseDot"></span>
+        <span id="phaseName">Hawkins, 1983</span>
+      </div>
+      <div class="hud__progress" id="progress">Question 1 / 12</div>
+      <div class="hud__score" title="Gaufres Eggo">
+        <span class="eggo" aria-hidden="true">🧇</span><span id="score">0</span>
+      </div>
+    </div>
+
+    <div class="timer" role="timer" aria-label="Temps restant">
+      <div class="timer__bar" id="timerBar"></div>
+      <span class="timer__val" id="timerVal">25</span>
+    </div>
+
+    <article class="card">
+      <p class="card__level" id="qLevel">Niveau 1 — Sous-sol des Wheeler</p>
+      <h2 class="card__q" id="qText">…</h2>
+      <div class="choices" id="choices" role="group" aria-label="Réponses possibles"></div>
+      <div class="reveal" id="reveal" aria-live="polite"></div>
+    </article>
+
+    <button class="btn btn--primary btn--next" id="btnNext" type="button" hidden>Suivant</button>
+    <div class="streak" id="streak" aria-hidden="true"></div>
+  </section>
+
+  <!-- ============ RESULT ============ -->
+  <section class="screen" id="screen-result" aria-labelledby="rankName">
+    <p class="result__kicker">Transmission terminée</p>
+    <div class="wall" id="wallResult" aria-hidden="true"></div>
+    <h2 class="result__rank" id="rankName">…</h2>
+    <p class="result__line" id="rankLine">…</p>
+    <p class="marks" id="marks" aria-label="Détail des réponses"></p>
+
+    <div class="stats" id="stats"></div>
+
+    <div class="result__actions">
+      <button class="btn btn--primary" id="btnReplay" type="button">Rejouer</button>
+      <button class="btn btn--ghost" id="btnShare" type="button">Copier mon score</button>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <p>Projet de fan non officiel, sans aucune affiliation avec Netflix ni les créateurs de la série.
+  Aucun contenu audiovisuel de la série n'est utilisé&nbsp;: tout ici est dessiné en CSS et synthétisé en Web&nbsp;Audio.</p>
+  <p><a href="https://github.com/sebplace/hawkins-quiz">Code source</a> · MIT</p>
+</footer>
+
+<script src="assets/questions.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
