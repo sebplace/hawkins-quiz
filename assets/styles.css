@@ -170,9 +170,9 @@ body.phase-3 #wallResult { filter: saturate(.8) brightness(.85) hue-rotate(195de
 .wall__row:last-child { margin-bottom: 0; }
 
 /* Le fil électrique qui zigzague derrière les ampoules.
-   Il relie le centre de la 1re colonne au centre de la 9e (100/9/2 = 5.55 %). */
+   Les descentes passent sur les bords du panneau, jamais sur une lettre. */
 .wall__row::before {
-  content: ""; position: absolute; left: 5.55%; right: 5.55%;
+  content: ""; position: absolute; left: 1%; right: 1%;
   top: calc(var(--bulb) / 2 - 1.5px); height: 3px; border-radius: 2px;
   background: linear-gradient(#3a4a2c, #1e2616);
   box-shadow: 0 1px 0 rgba(255, 255, 255, .1);
@@ -184,8 +184,8 @@ body.phase-3 #wallResult { filter: saturate(.8) brightness(.85) hue-rotate(195de
   background: linear-gradient(#33412a, #1e2616);
   z-index: 0;
 }
-.wall__row:nth-child(1)::after { left: calc(94.45% - 1.5px); }
-.wall__row:nth-child(2)::after { left: calc(5.55% - 1.5px); }
+.wall__row:nth-child(1)::after { right: 1%; }
+.wall__row:nth-child(2)::after { left: 1%; }
 
 .wall__cell { position: relative; z-index: 1; text-align: center; }
 /* La première rangée (A-H) n'a que 8 lettres : on la cale à droite pour que
