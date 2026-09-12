@@ -15,11 +15,13 @@ et se remplir de spores.
 
 | | |
 |---|---|
-| **Mur d'alphabet interactif** | 26 ampoules qui épellent vraiment des mots, comme Joyce. Il annonce votre rang final. |
+| **Mur d'alphabet interactif** | 26 ampoules qui épellent vraiment des mots, comme Joyce. Il annonce votre rang final — et sert de clavier pour vos initiales. |
+| **Chrono Démogorgon** | Pas une barre de progression : une créature dessinée en SVG qui traverse l'écran vers vous et ouvre sa fleur quand il ne reste presque plus rien. |
+| **Deux modes** | *Enquête* (12 questions, 3 dimensions) et *Survie* (jusqu'à la première erreur, chrono qui ne remonte jamais). |
+| **Tableau d'honneur** | Top 10 local par mode, initiales gravées en tapant trois lettres sur le mur. Comme au Palace Arcade. |
 | **3 phases visuelles** | Palette, scanlines CRT, vignette, spores et inclinaison de la page changent à chaque niveau. |
-| **Chrono Démogorgon** | 25 s, puis 20 s, puis 15 s. Zéro seconde = zéro gaufre. |
 | **Score en Eggo** | Parce que les points, c'est pour les gens qui n'ont pas de congélateur. |
-| **7 rangs** | De *Barb* (« personne n'a lancé d'avis de recherche ») à *Eleven*. |
+| **7 rangs + 1 secret** | De *Barb* (« personne n'a lancé d'avis de recherche ») à *Eleven*. Plus 7 rangs dédiés à la Survie. |
 | **Sons synthétisés** | Arpèges, bips, sweeps et carillons générés à la volée en Web Audio. Aucun fichier audio. |
 | **Partage façon Wordle** | 🧇🧇💀🧇 │ 🧇🧇🧇⏳ │ 🧇💀🧇🧇 — copié en un clic (ou via le partage natif du téléphone). |
 | **Saignements de nez** | À partir de 3 bonnes réponses d'affilée. C'est le prix du talent. |

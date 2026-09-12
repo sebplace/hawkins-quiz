@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Hawkins Quiz — Testez votre niveau de fan</title>
 <meta name="description" content="Douze questions, trois dimensions et un Démogorgon chronométré. Testez votre maîtrise de Stranger Things. Projet de fan non officiel.">
 <meta name="color-scheme" content="dark">
@@ -24,6 +24,7 @@
 <div class="grain" aria-hidden="true"></div>
 <div class="spores" id="spores" aria-hidden="true"></div>
 <div class="vignette" aria-hidden="true"></div>
+<div class="strike" id="strike" aria-hidden="true"></div>
 
 <main id="app">
 
@@ -47,9 +48,20 @@
 
     <p class="secrets" id="secrets" hidden></p>
 
+    <div class="modes" role="group" aria-label="Mode de jeu">
+      <button class="mode is-on" id="modeEnquete" type="button" aria-pressed="true">
+        <b>Enquête</b><span>12 questions, 3 dimensions</span>
+      </button>
+      <button class="mode" id="modeSurvie" type="button" aria-pressed="false">
+        <b>Survie</b><span>Jusqu'à la première erreur</span>
+      </button>
+    </div>
+
+    <p class="record" id="record" hidden></p>
+
     <div class="intro__actions">
       <button class="btn btn--primary" id="btnStart" type="button">
-        <span>Entrer dans le sous-sol</span>
+        <span id="startLabel">Entrer dans le sous-sol</span>
       </button>
       <button class="btn btn--ghost" id="btnSound" type="button" aria-pressed="false">
         <span id="soundLabel">Son : coupé</span>
@@ -57,11 +69,13 @@
     </div>
 
     <ul class="rules">
-      <li><b>12 questions</b> tirées au hasard parmi 30</li>
-      <li class="only-normal">Le décor s'assombrit à mesure que vous progressez&nbsp;: Hawkins → le labo → <i>le Monde à l'Envers</i></li>
-      <li class="only-normal">Le chrono raccourcit à chaque dimension. Zéro seconde = zéro gaufre</li>
-      <li class="only-ud">Trois strates, <b>aucune sortie</b>&nbsp;: Hawkins noyé → le labo mort → chez lui</li>
-      <li class="only-ud">Chrono réduit de moitié&nbsp;: <b>15 s, 12 s, 10 s</b>. Les questions arrivent à l'envers</li>
+      <li class="only-enquete"><b>12 questions</b> tirées au hasard parmi 30</li>
+      <li class="only-enquete only-normal">Le décor s'assombrit à mesure que vous progressez&nbsp;: Hawkins → le labo → <i>le Monde à l'Envers</i></li>
+      <li class="only-enquete only-normal">Le chrono raccourcit à chaque dimension. Zéro seconde = zéro gaufre</li>
+      <li class="only-enquete only-ud">Trois strates, <b>aucune sortie</b>&nbsp;: Hawkins noyé → le labo mort → chez lui</li>
+      <li class="only-enquete only-ud">Chrono réduit de moitié&nbsp;: <b>15 s, 12 s, 10 s</b>. Les questions arrivent à l'envers</li>
+      <li class="only-survie"><b>Une seule erreur</b> et la chasse s'arrête. Pas de deuxième chance</li>
+      <li class="only-survie">Le chrono perd une demi-seconde à chaque question. Il ne remonte jamais</li>
       <li class="only-keys">Clavier&nbsp;: touches <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd></li>
       <li class="rules__hint">Il paraît que le mur répond, si on lui parle.</li>
     </ul>
@@ -80,9 +94,31 @@
       </button>
     </div>
 
-    <div class="timer" role="timer" aria-label="Temps restant">
-      <div class="timer__bar" id="timerBar"></div>
-      <span class="timer__val" id="timerVal">25</span>
+    <!-- La chasse : le Démogorgon avance, vous reculez. -->
+    <div class="hunt" id="hunt" role="timer" aria-label="Temps restant">
+      <div class="hunt__track">
+        <div class="hunt__fill" id="huntFill"></div>
+        <div class="hunt__prey" aria-hidden="true"><span class="hunt__beam"></span><span class="hunt__body"></span></div>
+        <div class="demo" id="demo" aria-hidden="true">
+          <svg class="demo__svg" viewBox="0 0 56 66">
+            <g class="demo__limbs">
+              <path d="M25 48 C24 55 23 60 22 65" />
+              <path d="M31 48 C32 55 33 60 34 65" />
+              <path d="M24 30 C14 34 8 42 5 53" />
+              <path d="M32 30 C42 34 48 42 51 53" />
+            </g>
+            <path class="demo__torso" d="M28 22 C21 29 20 40 24 49 L32 49 C36 40 35 29 28 22 Z" />
+            <g class="demo__head">
+              <path class="petal" style="--a:-18deg;--o:-92deg" d="M28 25 C21 18 21 8 28 2 C35 8 35 18 28 25 Z" />
+              <path class="petal" style="--a:-9deg;--o:-46deg"  d="M28 25 C21 18 21 8 28 2 C35 8 35 18 28 25 Z" />
+              <path class="petal" style="--a:0deg;--o:0deg"     d="M28 25 C21 18 21 8 28 2 C35 8 35 18 28 25 Z" />
+              <path class="petal" style="--a:9deg;--o:46deg"    d="M28 25 C21 18 21 8 28 2 C35 8 35 18 28 25 Z" />
+              <path class="petal" style="--a:18deg;--o:92deg"   d="M28 25 C21 18 21 8 28 2 C35 8 35 18 28 25 Z" />
+            </g>
+          </svg>
+        </div>
+      </div>
+      <span class="hunt__val" id="timerVal">25</span>
     </div>
 
     <article class="card">
@@ -105,7 +141,18 @@
     <p class="badge" id="badge" hidden></p>
     <p class="marks" id="marks" aria-label="Détail des réponses"></p>
 
+    <div class="initials" id="initials" hidden>
+      <p class="initials__title">Vous entrez au tableau d'honneur</p>
+      <div class="initials__slots" id="iniSlots" aria-live="polite"></div>
+      <p class="initials__hint">Tapez trois lettres sur le mur, là-haut.</p>
+      <div class="initials__actions">
+        <button class="btn btn--ghost" id="iniBack" type="button">Effacer</button>
+        <button class="btn btn--primary" id="iniOk" type="button" disabled>Graver</button>
+      </div>
+    </div>
+
     <div class="stats" id="stats"></div>
+    <div class="board" id="board" hidden></div>
 
     <div class="result__actions">
       <button class="btn btn--primary" id="btnReplay" type="button">Rejouer</button>
@@ -116,8 +163,7 @@
 </main>
 
 <footer class="foot">
-  <p>Projet de fan non officiel, sans aucune affiliation avec Netflix ni les créateurs de la série.
-  Aucun contenu audiovisuel de la série n'est utilisé&nbsp;: tout ici est dessiné en CSS et synthétisé en Web&nbsp;Audio.</p>
+  <p>Projet de fan non officiel, sans aucune affiliation avec Netflix ni les créateurs de la série. Aucun contenu audiovisuel de la série n'est utilisé&nbsp;: tout ici est dessiné en CSS et synthétisé en Web&nbsp;Audio.</p>
   <p><a href="https://github.com/sebplace/hawkins-quiz">Code source</a> · MIT</p>
 </footer>
 

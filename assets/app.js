@@ -5,11 +5,17 @@
 (() => {
   "use strict";
 
-  /* ---------------- Config ---------------- */
-  const PER_LEVEL = 4;                 // questions tirées par niveau
+  /* ==================================================================
+     0. Configuration
+  ================================================================== */
+  const PER_LEVEL = 4;                        // questions tirées par niveau
   const TOTAL = PER_LEVEL * 3;
   const TIME = { 1: 25, 2: 20, 3: 15 };
-  const TIME_UD = { 1: 15, 2: 12, 3: 10 };   // le Monde à l'Envers ne patiente pas
+  const TIME_UD = { 1: 15, 2: 12, 3: 10 };    // le Monde à l'Envers ne patiente pas
+  const SURV = { start: 15, step: .5, floor: 5 };
+  const SURV_UD = { start: 10, step: .5, floor: 4 };
+  const BOARD_SIZE = 10;
+
   const PHASES = {
     1: { name: "Hawkins, 1983", sub: "Niveau 1 — Sous-sol des Wheeler" },
     2: { name: "Hawkins National Lab", sub: "Niveau 2 — Accès restreint" },
@@ -20,23 +26,39 @@
     2: { name: "Strate II — Le labo mort", sub: "Plus personne ne tient la porte" },
     3: { name: "Strate III — Chez lui", sub: "L'horloge a déjà commencé" }
   };
-  const BULB_COLORS = ["#ff2f45", "#ffc13b", "#3ddc84", "#3aa8ff", "#b14cff", "#ff7a2f"];
-  const STORE = { ud: "hq.ud", udOn: "hq.udOn", secrets: "hq.secrets" };
+  const PHASES_SURV = {
+    1: { name: "La chasse commence", sub: "Il vous a repéré" },
+    2: { name: "Il accélère", sub: "Le couloir se rétrécit" },
+    3: { name: "Il est derrière vous", sub: "Ne vous retournez pas" }
+  };
 
-  /* ---------------- Raccourcis ---------------- */
+  const BULB_COLORS = ["#ff2f45", "#ffc13b", "#3ddc84", "#3aa8ff", "#b14cff", "#ff7a2f"];
+  const STORE = {
+    ud: "hq.ud", udOn: "hq.udOn", secrets: "hq.secrets",
+    board: (mode) => `hq.board.${mode}`
+  };
+
+  /* ==================================================================
+     1. Raccourcis et utilitaires
+  ================================================================== */
   const $ = (id) => document.getElementById(id);
   const body = document.body;
   const el = {
     wall: $("wall"), wallCaption: $("wallCaption"), wallResult: $("wallResult"),
-    btnStart: $("btnStart"), btnSound: $("btnSound"), soundLabel: $("soundLabel"),
+    btnStart: $("btnStart"), startLabel: $("startLabel"),
+    btnSound: $("btnSound"), soundLabel: $("soundLabel"),
     btnNext: $("btnNext"), btnReplay: $("btnReplay"), btnShare: $("btnShare"),
     udToggle: $("udToggle"), udLabel: $("udLabel"), secrets: $("secrets"),
+    modeEnquete: $("modeEnquete"), modeSurvie: $("modeSurvie"), record: $("record"),
     brandTitle: $("brandTitle"), scoreBtn: $("scoreBtn"), scoreIcon: $("scoreIcon"),
     phaseName: $("phaseName"), progress: $("progress"), score: $("score"),
-    timerBar: $("timerBar"), timerVal: $("timerVal"), timer: document.querySelector(".timer"),
+    hunt: $("hunt"), huntFill: $("huntFill"), demo: $("demo"), timerVal: $("timerVal"),
+    strike: $("strike"),
     qLevel: $("qLevel"), qText: $("qText"), choices: $("choices"), reveal: $("reveal"),
     streak: $("streak"), stats: $("stats"), marks: $("marks"), badge: $("badge"),
-    rankName: $("rankName"), rankLine: $("rankLine"), spores: $("spores")
+    rankName: $("rankName"), rankLine: $("rankLine"), spores: $("spores"),
+    initials: $("initials"), iniSlots: $("iniSlots"), iniBack: $("iniBack"), iniOk: $("iniOk"),
+    board: $("board")
   };
   const screens = { intro: $("screen-intro"), quiz: $("screen-quiz"), result: $("screen-result") };
 
@@ -50,6 +72,7 @@
   };
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
   /* Haptique réservée aux appareils tactiles : sur desktop, Chrome bloque et
      journalise vibrate(), et il n'y a de toute façon rien à faire vibrer. */
   const canBuzz = "vibrate" in navigator && navigator.maxTouchPoints > 0;
@@ -61,11 +84,12 @@
 
   const store = {
     get(k, fallback = null) { try { return localStorage.getItem(k) ?? fallback; } catch { return fallback; } },
-    set(k, v) { try { localStorage.setItem(k, v); } catch { /* navigation privée */ } }
+    set(k, v) { try { localStorage.setItem(k, v); } catch { /* navigation privée */ } },
+    json(k, fallback) { try { return JSON.parse(store.get(k)) ?? fallback; } catch { return fallback; } }
   };
 
   /* ==================================================================
-     1. Mur d'alphabet — décor ET clavier secret
+     2. Mur d'alphabet — décor, clavier secret et borne d'arcade
   ================================================================== */
   const ROWS = [
     { letters: "ABCDEFGH".split(""), reverse: false },
@@ -73,10 +97,10 @@
     { letters: "RSTUVWXYZ".split(""), reverse: false }
   ];
 
-  function buildWall(node, interactive) {
+  function buildWall(node, onLetter) {
     if (!node) return;
     node.innerHTML = "";
-    if (!interactive) node.classList.add("wall--static");
+    if (!onLetter) node.classList.add("wall--static");
     let i = 0;
     ROWS.forEach((row) => {
       const r = document.createElement("div");
@@ -90,7 +114,7 @@
         cell.tabIndex = -1;                 // le mur est aria-hidden : on le garde hors du focus
         cell.style.setProperty("--c", BULB_COLORS[i++ % BULB_COLORS.length]);
         cell.innerHTML = `<div class="wall__bulb"></div><div class="wall__letter">${L}</div>`;
-        if (interactive) cell.addEventListener("click", () => tapLetter(L, cell));
+        if (onLetter) cell.addEventListener("click", () => onLetter(L, cell));
         r.appendChild(cell);
       });
       node.appendChild(r);
@@ -103,7 +127,7 @@
     const token = ++wallToken;
     const on = opts.on ?? 460;
     const gap = opts.gap ?? 130;
-    node.querySelectorAll(".wall__cell.on").forEach((c) => c.classList.remove("on"));
+    clearWall(node);
     for (const ch of word.toUpperCase()) {
       if (token !== wallToken) return;
       const cell = node.querySelector(`.wall__cell[data-letter="${ch}"]`);
@@ -117,11 +141,13 @@
     }
     if (opts.keep && token === wallToken) {
       for (const ch of word.toUpperCase()) {
-        const cell = node.querySelector(`.wall__cell[data-letter="${ch}"]`);
-        if (cell) cell.classList.add("on");
+        node.querySelector(`.wall__cell[data-letter="${ch}"]`)?.classList.add("on");
       }
     }
   }
+
+  const clearWall = (node) =>
+    node?.querySelectorAll(".wall__cell.on").forEach((c) => c.classList.remove("on"));
 
   /* Scintillement d'ambiance tant que personne ne parle au mur */
   let twinkleOn = false;
@@ -138,7 +164,7 @@
   }
 
   /* ==================================================================
-     2. Sons synthétisés (Web Audio) — rien de copyrighté, que des sinus
+     3. Sons synthétisés (Web Audio) — rien de copyrighté, que des sinus
   ================================================================== */
   const sfx = (() => {
     let ctx = null, on = false;
@@ -159,9 +185,23 @@
       osc.start(t); osc.stop(t + dur + .02);
     }
 
+    function sweep(from, to, dur, type = "sawtooth", vol = .12) {
+      if (!on) return;
+      const c = ac();
+      const t = c.currentTime;
+      const osc = c.createOscillator();
+      const g = c.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(from, t);
+      osc.frequency.exponentialRampToValueAtTime(to, t + dur);
+      g.gain.setValueAtTime(vol, t);
+      g.gain.exponentialRampToValueAtTime(.0001, t + dur);
+      osc.connect(g).connect(c.destination);
+      osc.start(t); osc.stop(t + dur + .02);
+    }
+
     return {
       toggle() { on = !on; if (on) { ac().resume?.(); tone(660, .12); } return on; },
-      get enabled() { return on; },
       bulb() { tone(880 + Math.random() * 260, .07, "sine", .05); },
       click() { tone(420, .05, "square", .05); },
       correct() { [523, 659, 784, 1047].forEach((f, i) => tone(f, .22, "triangle", .12, i * .07)); },
@@ -170,6 +210,8 @@
       gate() { [330, 262, 196, 147, 110].forEach((f, i) => tone(f, .8, "sine", .1, i * .13)); },
       win() { [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, .5, "triangle", .12, i * .12)); },
       unlock() { [196, 294, 392, 523, 784].forEach((f, i) => tone(f, .9, "sine", .11, i * .1)); },
+      pounce() { sweep(420, 48, .55); tone(70, .7, "square", .13); },
+      carve() { [392, 523, 659].forEach((f, i) => tone(f, .3, "square", .1, i * .09)); },
       chime(i = 0) {
         tone(110, 2.2, "sine", .16, i * .95);
         tone(220.5, 1.8, "sine", .08, i * .95);
@@ -179,7 +221,7 @@
   })();
 
   /* ==================================================================
-     3. Ambiance : spores et effets ponctuels
+     4. Ambiance : spores et effets ponctuels
   ================================================================== */
   function buildSpores(n = 26) {
     const frag = document.createDocumentFragment();
@@ -235,44 +277,36 @@
     setTimeout(() => body.classList.remove("flipped"), ms);
   }
 
+  function strike() {
+    if (reduced) return;
+    el.strike.classList.remove("is-on");
+    void el.strike.offsetWidth;
+    el.strike.classList.add("is-on");
+  }
+
   /* ==================================================================
-     4. Secrets du mur
+     5. Secrets du mur
   ================================================================== */
   let udUnlocked = store.get(STORE.ud) === "1";
   let udOn = udUnlocked && store.get(STORE.udOn) === "1";
   const found = new Set((store.get(STORE.secrets) || "").split(",").filter(Boolean));
 
   const SECRETS = [
-    {
-      id: "eggo", word: "EGGO", say: "Le congélateur est ouvert.",
-      run() { rain("🧇", 30); sfx.win(); }
-    },
-    {
-      id: "vecna", word: "VECNA", say: "Quatre coups. Courez.",
+    { id: "eggo", word: "EGGO", say: "Le congélateur est ouvert.",
+      run() { rain("🧇", 30); sfx.win(); } },
+    { id: "vecna", word: "VECNA", say: "Quatre coups. Courez.",
       run() {
-        for (let i = 0; i < 4; i++) {
-          sfx.chime(i);
-          setTimeout(() => flip(160), i * 950);
-        }
+        for (let i = 0; i < 4; i++) { sfx.chime(i); setTimeout(() => flip(160), i * 950); }
         buzz([40, 900, 40, 900, 40, 900, 40]);
-      }
-    },
-    {
-      id: "eleven", word: "ELEVEN", say: "Elle vous a entendu.",
-      run() { nosebleed(); setTimeout(nosebleed, 500); sfx.gate(); buzz([20, 60, 20]); }
-    },
-    {
-      id: "barb", word: "BARB", say: "Quelqu'un s'en souvient, enfin.",
-      run() { rain("🕯️", 14); sfx.chime(0); }
-    },
-    {
-      id: "run", word: "RUN", say: "Un peu tard pour ça, non ?",
-      run() { flip(1200); sfx.wrong(); }
-    },
-    {
-      id: "envers", word: "ENVERS", say: "La faille est ouverte.",
-      run() { unlockUD(); }
-    }
+      } },
+    { id: "eleven", word: "ELEVEN", say: "Elle vous a entendu.",
+      run() { nosebleed(); setTimeout(nosebleed, 500); sfx.gate(); buzz([20, 60, 20]); } },
+    { id: "barb", word: "BARB", say: "Quelqu'un s'en souvient, enfin.",
+      run() { rain("🕯️", 14); sfx.chime(0); } },
+    { id: "run", word: "RUN", say: "Un peu tard pour ça, non ?",
+      run() { flip(1200); sfx.wrong(); } },
+    { id: "envers", word: "ENVERS", say: "La faille est ouverte.",
+      run() { unlockUD(); } }
   ];
 
   function renderSecrets() {
@@ -298,6 +332,7 @@
     el.udToggle.setAttribute("aria-pressed", String(on));
     el.udLabel.textContent = on ? "Monde à l'Envers : ouvert" : "Monde à l'Envers : scellé";
     el.scoreIcon.textContent = on ? "🩸" : "🧇";
+    renderRecord();
     if (on && !silent) { buzz([12, 40, 12]); flash("Le Monde à l'Envers vous attend"); }
   }
 
@@ -356,37 +391,168 @@
   }
 
   /* ==================================================================
-     5. Moteur de quiz
+     6. Tableau d'honneur
   ================================================================== */
+  const boardKey = (mode, ud) => `${STORE.board(mode)}${ud ? ".ud" : ""}`;
+  const getBoard = (mode, ud) => store.json(boardKey(mode, ud), []);
+
+  function qualifies(score, mode, ud) {
+    if (score <= 0) return false;
+    const b = getBoard(mode, ud);
+    return b.length < BOARD_SIZE || score > b[b.length - 1].s;
+  }
+
+  function pushScore(ini, score, mode, ud) {
+    const b = getBoard(mode, ud);
+    const entry = { i: ini, s: score, d: new Date().toISOString().slice(0, 10) };
+    b.push(entry);
+    b.sort((x, y) => y.s - x.s);
+    const cut = b.slice(0, BOARD_SIZE);
+    store.set(boardKey(mode, ud), JSON.stringify(cut));
+    return cut.indexOf(entry);
+  }
+
+  function renderBoard(mode, ud, highlight = -1) {
+    const b = getBoard(mode, ud);
+    if (!b.length) { el.board.hidden = true; return; }
+    el.board.hidden = false;
+    const unit = mode === "survie" ? "" : ` / ${TOTAL}`;
+    el.board.innerHTML =
+      `<p class="board__title">Tableau d'honneur — ${mode === "survie" ? "Survie" : "Enquête"}${ud ? " · Monde à l'Envers" : ""}</p>` +
+      b.map((e, i) => `<div class="board__row${i === highlight ? " is-new" : ""}">
+          <i>${String(i + 1).padStart(2, "0")}</i>
+          <b>${e.i}</b>
+          <span>${e.s}${unit}</span>
+          <i>${e.d.slice(8)}/${e.d.slice(5, 7)}</i>
+        </div>`).join("");
+  }
+
+  function renderRecord() {
+    const b = getBoard(mode, udOn);
+    if (!b.length) { el.record.hidden = true; return; }
+    el.record.hidden = false;
+    const top = b[0];
+    const unit = mode === "survie" ? " questions" : ` / ${TOTAL}`;
+    el.record.innerHTML = `Record ${mode === "survie" ? "Survie" : "Enquête"} : <b>${top.s}${unit}</b> par ${top.i}`;
+  }
+
+  /* --- Saisie des initiales, sur le mur du résultat --- */
+  let iniActive = false;
+  let ini = [];
+
+  function renderIniSlots() {
+    el.iniSlots.innerHTML = [0, 1, 2]
+      .map((i) => `<div class="initials__slot${i === ini.length ? " is-next" : ""}">${ini[i] || ""}</div>`)
+      .join("");
+    el.iniOk.disabled = ini.length < 3;
+  }
+
+  function openInitials() {
+    iniActive = true;
+    ini = [];
+    el.initials.hidden = false;
+    clearWall(el.wallResult);
+    renderIniSlots();
+  }
+
+  function pushInitial(L, cell) {
+    if (!iniActive || ini.length >= 3) return;
+    ini.push(L);
+    cell?.classList.add("on");
+    sfx.bulb();
+    buzz(8);
+    renderIniSlots();
+  }
+
+  function popInitial() {
+    if (!iniActive || !ini.length) return;
+    const L = ini.pop();
+    el.wallResult.querySelector(`.wall__cell[data-letter="${L}"]`)?.classList.remove("on");
+    sfx.click();
+    renderIniSlots();
+  }
+
+  function commitInitials() {
+    if (ini.length < 3) return;
+    const rank = pushScore(ini.join(""), state.score, state.mode, state.ud);
+    iniActive = false;
+    el.initials.hidden = true;
+    sfx.carve();
+    buzz([14, 50, 14]);
+    renderBoard(state.mode, state.ud, rank);
+    renderRecord();
+    spell(el.wallResult, lastRank.wall, { keep: true, on: 240, gap: 70 });
+  }
+
+  /* ==================================================================
+     7. Moteur de quiz
+  ================================================================== */
+  let mode = "enquete";
+
   const state = {
-    deck: [], i: 0, score: 0, streak: 0, best: 0,
-    timeouts: 0, times: [], marks: [], locked: true, ud: false,
-    phase: 0, raf: 0, deadline: 0, duration: 0, lastTick: -1
+    mode: "enquete", deck: [], i: 0, score: 0, streak: 0, best: 0,
+    timeouts: 0, times: [], marks: [], locked: true, ud: false, over: false,
+    phase: 0, raf: 0, deadline: 0, duration: 0, lastTick: -1, close: false
   };
 
+  function setMode(m) {
+    mode = m;
+    body.classList.toggle("mode-survie", m === "survie");
+    el.modeEnquete.classList.toggle("is-on", m === "enquete");
+    el.modeSurvie.classList.toggle("is-on", m === "survie");
+    el.modeEnquete.setAttribute("aria-pressed", String(m === "enquete"));
+    el.modeSurvie.setAttribute("aria-pressed", String(m === "survie"));
+    el.startLabel.textContent = m === "survie" ? "Lancer la chasse" : "Entrer dans le sous-sol";
+    renderRecord();
+  }
+
+  const prep = (q) => ({ ...q, correct: q.choices[0], shuffled: shuffle(q.choices) });
+
   function buildDeck() {
+    if (mode === "survie") return shuffle(QUESTIONS).map(prep);
     const deck = [];
     [1, 2, 3].forEach((lvl) => {
-      shuffle(QUESTIONS.filter((q) => q.level === lvl)).slice(0, PER_LEVEL).forEach((q) => {
-        deck.push({ ...q, correct: q.choices[0], shuffled: shuffle(q.choices) });
-      });
+      shuffle(QUESTIONS.filter((q) => q.level === lvl)).slice(0, PER_LEVEL).forEach((q) => deck.push(prep(q)));
     });
     return deck;
   }
 
+  /* En Survie, on recycle le paquet indéfiniment. */
+  function currentQuestion() {
+    if (state.i < state.deck.length) return state.deck[state.i];
+    state.deck = state.deck.concat(shuffle(QUESTIONS).map(prep));
+    return state.deck[state.i];
+  }
+
+  const phaseFor = (q, i) =>
+    state.mode === "survie" ? Math.min(3, Math.floor(i / 5) + 1) : q.level;
+
+  function phaseLabels() {
+    if (state.mode === "survie") return PHASES_SURV;
+    return state.ud ? PHASES_UD : PHASES;
+  }
+
   function setPhase(p) {
     if (state.phase === p) return;
+    const first = state.phase === 0;
     state.phase = p;
     body.classList.remove("phase-0", "phase-1", "phase-2", "phase-3");
     body.classList.add(`phase-${p}`);
-    el.phaseName.textContent = (state.ud ? PHASES_UD : PHASES)[p].name;
-    if (p > 1) {
-      sfx.gate();
-      buzz([18, 70, 18]);
-      flash(state.ud
-        ? (p === 2 ? "Vous descendez encore" : "Il vous a senti")
-        : (p === 2 ? "Accès au laboratoire" : "Vous glissez dans le Monde à l'Envers"));
+    el.phaseName.textContent = phaseLabels()[p].name;
+    if (first) return;
+    sfx.gate();
+    buzz([18, 70, 18]);
+    if (state.mode === "survie") flash(p === 2 ? "Il accélère" : "Il est juste derrière");
+    else if (state.ud) flash(p === 2 ? "Vous descendez encore" : "Il vous a senti");
+    else flash(p === 2 ? "Accès au laboratoire" : "Vous glissez dans le Monde à l'Envers");
+  }
+
+  function durationFor(q, i) {
+    if (state.mode === "survie") {
+      const s = state.ud ? SURV_UD : SURV;
+      return Math.max(s.floor, s.start - i * s.step);
     }
+    return (state.ud ? TIME_UD : TIME)[q.level];
   }
 
   function startTimer(seconds) {
@@ -394,16 +560,25 @@
     state.duration = seconds * 1000;
     state.deadline = performance.now() + state.duration;
     state.lastTick = -1;
-    el.timer.classList.remove("is-panic");
+    state.close = false;
+    el.hunt.classList.remove("is-close", "is-caught");
+    el.demo.style.setProperty("--p", "0");
 
     const loop = (now) => {
       const left = Math.max(0, state.deadline - now);
-      el.timerBar.style.transform = `scaleX(${left / state.duration})`;
+      const ratio = left / state.duration;
+      el.huntFill.style.transform = `scaleX(${ratio})`;
+      el.demo.style.setProperty("--p", (1 - ratio).toFixed(4));
+
+      if (!state.close && ratio <= .28) {
+        state.close = true;
+        el.hunt.classList.add("is-close");
+      }
       const s = Math.ceil(left / 1000);
       if (s !== state.lastTick) {
         state.lastTick = s;
         el.timerVal.textContent = s;
-        if (s <= 5 && s > 0) { sfx.tick(); el.timer.classList.add("is-panic"); }
+        if (ratio <= .28 && s > 0) sfx.tick();
       }
       if (left <= 0) { answer(null); return; }
       state.raf = requestAnimationFrame(loop);
@@ -412,11 +587,13 @@
   }
 
   function render() {
-    const q = state.deck[state.i];
-    setPhase(q.level);
+    const q = currentQuestion();
+    setPhase(phaseFor(q, state.i));
 
-    el.progress.textContent = `Question ${state.i + 1} / ${TOTAL}`;
-    el.qLevel.textContent = (state.ud ? PHASES_UD : PHASES)[q.level].sub;
+    el.progress.textContent = state.mode === "survie"
+      ? `Question ${state.i + 1}`
+      : `Question ${state.i + 1} / ${TOTAL}`;
+    el.qLevel.textContent = phaseLabels()[state.phase].sub;
     el.qText.textContent = q.q;
     if (state.ud && !reduced) {
       el.qText.style.animation = "none";
@@ -438,22 +615,21 @@
     });
 
     /* L'horloge de Vecna sonne à mi-parcours dans le Monde à l'Envers. */
-    if (state.ud && state.i === TOTAL / 2) {
+    if (state.ud && state.mode === "enquete" && state.i === TOTAL / 2) {
       sfx.chime(0); sfx.chime(1);
       flash("L'horloge sonne");
     }
 
     state.locked = false;
-    startTimer((state.ud ? TIME_UD : TIME)[q.level]);
+    startTimer(durationFor(q, state.i));
   }
 
   function answer(choice) {
     if (state.locked) return;
     state.locked = true;
     cancelAnimationFrame(state.raf);
-    el.timer.classList.remove("is-panic");
 
-    const q = state.deck[state.i];
+    const q = currentQuestion();
     const elapsed = (state.duration - Math.max(0, state.deadline - performance.now())) / 1000;
     state.times.push(Math.min(elapsed, state.duration / 1000));
     const ok = choice === q.correct;
@@ -467,6 +643,7 @@
     });
 
     if (ok) {
+      el.hunt.classList.remove("is-close");
       state.score++;
       state.streak++;
       state.best = Math.max(state.best, state.streak);
@@ -475,13 +652,19 @@
       sfx.correct();
       buzz(14);
       if (state.streak === 3) { nosebleed(); flash("Série de 3 — saignement de nez"); }
-      else if (state.streak >= 5) { nosebleed(); flash(`Série de ${state.streak} — Eleven approuve`); }
+      else if (state.streak >= 5 && state.streak % 5 === 0) { nosebleed(); flash(`Série de ${state.streak} — Eleven approuve`); }
     } else {
       state.streak = 0;
-      if (choice === null) { state.timeouts++; state.marks.push("⏳"); }
-      else state.marks.push("💀");
-      sfx.wrong();
-      buzz([30, 60, 30]);
+      if (choice === null) {
+        state.timeouts++;
+        state.marks.push("⏳");
+        el.hunt.classList.add("is-caught");
+        strike(); sfx.pounce(); buzz([60, 40, 120]);
+      } else {
+        state.marks.push("💀");
+        sfx.wrong(); buzz([30, 60, 30]);
+      }
+      if (state.mode === "survie") state.over = true;
     }
 
     const head = choice === null
@@ -490,20 +673,22 @@
     el.reveal.innerHTML = head + q.fact;
     el.reveal.classList.add("is-on");
 
+    const last = state.over || (state.mode === "enquete" && state.i === TOTAL - 1);
     el.btnNext.hidden = false;
-    el.btnNext.textContent = state.i === TOTAL - 1 ? "Voir le verdict" : "Suivant";
+    el.btnNext.textContent = last ? "Voir le verdict" : "Suivant";
     el.btnNext.focus({ preventScroll: true });
   }
 
   function next() {
     sfx.click();
+    if (state.over) return finish();
     state.i++;
-    if (state.i >= TOTAL) finish();
-    else render();
+    if (state.mode === "enquete" && state.i >= TOTAL) return finish();
+    render();
   }
 
   /* ==================================================================
-     6. Résultat
+     8. Résultat
   ================================================================== */
   function show(name) {
     Object.values(screens).forEach((s) => s.classList.remove("is-active"));
@@ -517,20 +702,26 @@
     line: "Zéro sur douze. Statistiquement, il faut le faire exprès. La conclusion s'impose : le monstre, c'est vous."
   };
 
-  let lastRank = null, lastUD = false;
+  const pickRank = () => {
+    const table = state.mode === "survie" ? SURVIVAL_RANKS : RANKS;
+    if (state.mode === "enquete" && state.score === 0) return ZERO_RANK;
+    return table.find((r) => state.score >= r.min && state.score <= r.max) || table[0];
+  };
+
+  let lastRank = null, lastUD = false, lastMode = "enquete";
 
   async function finish() {
-    const rank = state.score === 0
-      ? ZERO_RANK
-      : RANKS.find((r) => state.score >= r.min && state.score <= r.max) || RANKS[0];
+    cancelAnimationFrame(state.raf);
+    const rank = pickRank();
     lastRank = rank;
     lastUD = state.ud;
+    lastMode = state.mode;
 
     el.rankName.textContent = rank.name;
     el.rankLine.textContent = rank.line;
 
     el.badge.hidden = !state.ud;
-    el.badge.textContent = state.score >= 7
+    el.badge.textContent = state.score >= (state.mode === "survie" ? 10 : 7)
       ? "Revenu du Monde à l'Envers"
       : "Resté dans le Monde à l'Envers";
 
@@ -538,30 +729,44 @@
       ? (state.times.reduce((a, b) => a + b, 0) / state.times.length).toFixed(1)
       : "0";
 
-    el.marks.innerHTML = state.marks
+    el.marks.innerHTML = state.marks.slice(-24)
       .map((m, i) => (i && i % PER_LEVEL === 0 ? '<span class="sep">│</span>' : "") + m)
       .join("");
 
-    el.stats.innerHTML = `
-      <div class="stat"><b>${state.score}/${TOTAL}</b><span>${state.ud ? "Gouttes" : "Gaufres"}</span></div>
-      <div class="stat"><b>${state.best}</b><span>Meilleure série</span></div>
-      <div class="stat"><b>${avg}s</b><span>Temps moyen</span></div>
-      <div class="stat"><b>${state.timeouts}</b><span>Dévoré·e par le chrono</span></div>`;
+    const unit = state.ud ? "Gouttes" : "Gaufres";
+    el.stats.innerHTML = state.mode === "survie"
+      ? `<div class="stat"><b>${state.score}</b><span>Questions tenues</span></div>
+         <div class="stat"><b>${avg}s</b><span>Temps moyen</span></div>
+         <div class="stat"><b>${(durationFor(null, state.i)).toFixed(1)}s</b><span>Dernier chrono</span></div>
+         <div class="stat"><b>${state.timeouts}</b><span>Rattrapé·e</span></div>`
+      : `<div class="stat"><b>${state.score}/${TOTAL}</b><span>${unit}</span></div>
+         <div class="stat"><b>${state.best}</b><span>Meilleure série</span></div>
+         <div class="stat"><b>${avg}s</b><span>Temps moyen</span></div>
+         <div class="stat"><b>${state.timeouts}</b><span>Dévoré·e par le chrono</span></div>`;
 
     show("result");
-    if (state.score >= 9) sfx.win();
+    if (state.score >= (state.mode === "survie" ? 10 : 9)) sfx.win();
+
+    const qualified = qualifies(state.score, state.mode, state.ud);
+    renderBoard(state.mode, state.ud, -1);
+
     await sleep(400);
-    spell(el.wallResult, rank.wall, { keep: true, on: 420, gap: 110 });
+    await spell(el.wallResult, rank.wall, { keep: true, on: 420, gap: 110 });
+
+    if (qualified) { await sleep(500); openInitials(); }
   }
 
   function shareText() {
-    const grid = state.marks.reduce((acc, m, i) => {
+    const grid = state.marks.slice(-24).reduce((acc, m, i) => {
       acc += m;
-      if ((i + 1) % PER_LEVEL === 0 && i < state.marks.length - 1) acc += " │ ";
+      if ((i + 1) % PER_LEVEL === 0 && i < Math.min(state.marks.length, 24) - 1) acc += " │ ";
       return acc;
     }, "");
+    const head = lastMode === "survie"
+      ? `Hawkins Quiz — Survie : ${state.score} questions tenues ${lastUD ? "🙃" : "🧇"}`
+      : `Hawkins Quiz — ${state.score}/${TOTAL} ${lastUD ? "🙃" : "🧇"}`;
     return [
-      `Hawkins Quiz — ${state.score}/${TOTAL} ${lastUD ? "🙃" : "🧇"}`,
+      head,
       `Rang : ${lastRank ? lastRank.name : "—"}${lastUD ? "  ·  Mode Monde à l'Envers" : ""}`,
       "",
       grid,
@@ -572,12 +777,15 @@
   }
 
   /* ==================================================================
-     7. Démarrage / rejouer
+     9. Démarrage / rejouer
   ================================================================== */
   function startGame() {
+    iniActive = false;
+    el.initials.hidden = true;
+    el.board.hidden = true;
     Object.assign(state, {
-      deck: buildDeck(), i: 0, score: 0, streak: 0, best: 0,
-      timeouts: 0, times: [], marks: [], locked: true, phase: 0, ud: udOn
+      mode, deck: buildDeck(), i: 0, score: 0, streak: 0, best: 0,
+      timeouts: 0, times: [], marks: [], locked: true, phase: 0, ud: udOn, over: false
     });
     el.score.textContent = "0";
     el.scoreIcon.textContent = udOn ? "🩸" : "🧇";
@@ -588,7 +796,7 @@
   }
 
   /* ==================================================================
-     8. Easter eggs hors mur
+     10. Easter eggs hors mur
   ================================================================== */
   const KONAMI = "ArrowUpArrowUpArrowDownArrowDownArrowLeftArrowRightArrowLeftArrowRightba";
   let konami = "", digits = "", titleTaps = 0, titleTimer;
@@ -610,6 +818,16 @@
   });
 
   document.addEventListener("keydown", (e) => {
+    /* Saisie des initiales : elle capte tout le clavier tant qu'elle est ouverte. */
+    if (iniActive) {
+      if (/^[a-zA-Z]$/.test(e.key)) {
+        const L = e.key.toUpperCase();
+        pushInitial(L, el.wallResult.querySelector(`.wall__cell[data-letter="${L}"]`));
+      } else if (e.key === "Backspace") { e.preventDefault(); popInitial(); }
+      else if (e.key === "Enter" && ini.length === 3) { e.preventDefault(); commitInitials(); }
+      return;
+    }
+
     /* Réponses au clavier */
     if (screens.quiz.classList.contains("is-active")) {
       if (!state.locked && /^[1-4]$/.test(e.key)) {
@@ -641,12 +859,16 @@
   });
 
   /* ==================================================================
-     9. Câblage
+     11. Câblage
   ================================================================== */
   el.btnStart.addEventListener("click", () => { sfx.click(); buzz(12); startGame(); });
   el.btnNext.addEventListener("click", next);
   el.btnReplay.addEventListener("click", () => { sfx.click(); buzz(12); startGame(); });
   el.udToggle.addEventListener("click", () => { sfx.click(); setUD(!udOn); });
+  el.modeEnquete.addEventListener("click", () => { sfx.click(); setMode("enquete"); });
+  el.modeSurvie.addEventListener("click", () => { sfx.click(); setMode("survie"); });
+  el.iniBack.addEventListener("click", popInitial);
+  el.iniOk.addEventListener("click", commitInitials);
 
   el.btnSound.addEventListener("click", () => {
     const on = sfx.toggle();
@@ -673,10 +895,10 @@
   });
 
   /* ==================================================================
-     10. Initialisation
+     12. Initialisation
   ================================================================== */
-  buildWall(el.wall, true);
-  buildWall(el.wallResult, false);
+  buildWall(el.wall, tapLetter);
+  buildWall(el.wallResult, (L, cell) => pushInitial(L, cell));
   buildSpores();
   body.classList.remove("phase-0");
   body.classList.add("phase-1");
@@ -684,6 +906,7 @@
   el.udToggle.hidden = !udUnlocked;
   if (udUnlocked) setUD(udOn, true);
   renderSecrets();
+  setMode("enquete");
 
   (async () => {
     await sleep(700);

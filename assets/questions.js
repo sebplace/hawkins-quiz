@@ -213,12 +213,56 @@ const QUESTIONS = [
   }
 ];
 
-/* Rangs finaux : le mur d'alphabet épelle `wall`. */
+/* Rangs du mode Survie : indexés sur le nombre de questions tenues. */
+const SURVIVAL_RANKS = [
+  {
+    min: 0, max: 2,
+    name: "Repas du soir",
+    wall: "BARB",
+    line: "Le Démogorgon n'a même pas eu besoin de courir. C'est presque vexant pour lui."
+  },
+  {
+    min: 3, max: 5,
+    name: "Proie standard",
+    wall: "FUITE",
+    line: "Vous avez tenu le temps d'un générique. Hawkins ne retiendra pas votre nom."
+  },
+  {
+    min: 6, max: 9,
+    name: "Survivant du placard",
+    wall: "STEVE",
+    line: "Caché, silencieux, vivant. Trois qualités, dans le bon ordre."
+  },
+  {
+    min: 10, max: 14,
+    name: "Membre du Hellfire",
+    wall: "EDDIE",
+    line: "Vous avez joué de la guitare pendant l'attaque. Personne ne vous demandait ça, et pourtant."
+  },
+  {
+    min: 15, max: 19,
+    name: "Chasseur de Demodogs",
+    wall: "DUSTIN",
+    line: "Vous les avez attirés avec de la viande crue et un plan douteux. Ça a marché."
+  },
+  {
+    min: 20, max: 24,
+    name: "Shérif de Hawkins",
+    wall: "HOPPER",
+    line: "Vous avez traversé ça au café et à la mauvaise foi. Personne ne comprend comment."
+  },
+  {
+    min: 25, max: 9999,
+    name: "Sujet 011",
+    wall: "ELEVEN",
+    line: "À ce stade, ce n'est plus de la survie. C'est vous qui les traquez."
+  }
+];
+/* Rangs du mode Enquête : le mur d'alphabet épelle `wall`. */
 const RANKS = [
   {
     min: 0, max: 2,
-    name: "Barb",
-    wall: "BARB",
+    name: "Barb",    wall: "BARB",
     line: "Tu as disparu près de la piscine et personne n'a lancé d'avis de recherche. Personne."
   },
   {
