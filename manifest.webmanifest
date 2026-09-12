@@ -1,0 +1,18 @@
+{
+  "name": "Hawkins Quiz",
+  "short_name": "Hawkins",
+  "description": "Douze questions, trois dimensions et un Démogorgon chronométré. Un quiz de fan sur Stranger Things.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#06070c",
+  "theme_color": "#06070c",
+  "lang": "fr",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    { "src": "./assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./assets/icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -35,8 +35,12 @@
   const BULB_COLORS = ["#ff2f45", "#ffc13b", "#3ddc84", "#3aa8ff", "#b14cff", "#ff7a2f"];
   const STORE = {
     ud: "hq.ud", udOn: "hq.udOn", secrets: "hq.secrets", seen: "hq.seen", seasons: "hq.seasons",
+    done: (seed) => `hq.done.${seed.toString(36)}`,
     board: (mode) => `hq.board.${mode}`
   };
+
+  /* Le défi du jour est numéroté depuis cette date. */
+  const EPOCH = Date.UTC(2026, 0, 1);
 
   /* ==================================================================
      1. Raccourcis et utilitaires
@@ -47,9 +51,10 @@
     wall: $("wall"), wallCaption: $("wallCaption"), wallResult: $("wallResult"),
     btnStart: $("btnStart"), startLabel: $("startLabel"),
     btnSound: $("btnSound"), soundLabel: $("soundLabel"),
-    btnNext: $("btnNext"), btnReplay: $("btnReplay"), btnShare: $("btnShare"),
+    btnNext: $("btnNext"), btnReplay: $("btnReplay"), btnShare: $("btnShare"), btnCard: $("btnCard"),
     udToggle: $("udToggle"), udLabel: $("udLabel"), secrets: $("secrets"),
-    modeEnquete: $("modeEnquete"), modeSurvie: $("modeSurvie"), record: $("record"),
+    modeEnquete: $("modeEnquete"), modeSurvie: $("modeSurvie"), modeDefi: $("modeDefi"),
+    defiTitle: $("defiTitle"), defiSub: $("defiSub"), record: $("record"),
     seasons: [...document.querySelectorAll(".season")],
     brandTitle: $("brandTitle"), scoreBtn: $("scoreBtn"), scoreIcon: $("scoreIcon"),
     phaseName: $("phaseName"), progress: $("progress"), score: $("score"),
@@ -74,6 +79,35 @@
   };
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* --- Tirage reproductible : même graine, même paquet, partout --- */
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  const shuffleWith = (rng, arr) => {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  };
+  const hashString = (str) => {
+    let h = 2166136261;
+    for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+  };
+  function todayNumber() {
+    const now = new Date();
+    const utc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+    return Math.floor((utc - EPOCH) / 86400000) + 1;
+  }
+  const seedForDay = (n) => hashString(`hawkins-jour-${n}`);
 
   /* Haptique réservée aux appareils tactiles : sur desktop, Chrome bloque et
      journalise vibrate(), et il n'y a de toute façon rien à faire vibrer. */
@@ -414,13 +448,15 @@
     return cut.indexOf(entry);
   }
 
+  const MODE_LABEL = { enquete: "Enquête", survie: "Survie", defi: "Défi" };
+
   function renderBoard(mode, ud, highlight = -1) {
     const b = getBoard(mode, ud);
     if (!b.length) { el.board.hidden = true; return; }
     el.board.hidden = false;
     const unit = mode === "survie" ? "" : ` / ${TOTAL}`;
     el.board.innerHTML =
-      `<p class="board__title">Tableau d'honneur — ${mode === "survie" ? "Survie" : "Enquête"}${ud ? " · Monde à l'Envers" : ""}</p>` +
+      `<p class="board__title">Tableau d'honneur — ${MODE_LABEL[mode]}${ud ? " · Monde à l'Envers" : ""}</p>` +
       b.map((e, i) => `<div class="board__row${i === highlight ? " is-new" : ""}">
           <i>${String(i + 1).padStart(2, "0")}</i>
           <b>${e.i}</b>
@@ -435,7 +471,7 @@
     el.record.hidden = false;
     const top = b[0];
     const unit = mode === "survie" ? " questions" : ` / ${TOTAL}`;
-    el.record.innerHTML = `Record ${mode === "survie" ? "Survie" : "Enquête"} : <b>${top.s}${unit}</b> par ${top.i}`;
+    el.record.innerHTML = `Record ${MODE_LABEL[mode]} : <b>${top.s}${unit}</b> par ${top.i}`;
   }
 
   /* --- Saisie des initiales, sur le mur du résultat --- */
@@ -499,13 +535,56 @@
 
   function setMode(m) {
     mode = m;
-    body.classList.toggle("mode-survie", m === "survie");
-    el.modeEnquete.classList.toggle("is-on", m === "enquete");
-    el.modeSurvie.classList.toggle("is-on", m === "survie");
-    el.modeEnquete.setAttribute("aria-pressed", String(m === "enquete"));
-    el.modeSurvie.setAttribute("aria-pressed", String(m === "survie"));
-    el.startLabel.textContent = m === "survie" ? "Lancer la chasse" : "Entrer dans le sous-sol";
+    body.classList.remove("mode-survie", "mode-defi");
+    if (m !== "enquete") body.classList.add(`mode-${m}`);
+    [["enquete", el.modeEnquete], ["survie", el.modeSurvie], ["defi", el.modeDefi]]
+      .forEach(([key, btn]) => {
+        btn.classList.toggle("is-on", m === key);
+        btn.setAttribute("aria-pressed", String(m === key));
+      });
+    const done = dailyDone();
+    el.startLabel.textContent =
+      m === "survie" ? "Lancer la chasse"
+      : m === "defi" ? (done ? "Défi déjà relevé" : "Relever le défi")
+      : "Entrer dans le sous-sol";
+    el.btnStart.disabled = m === "defi" && !!done;
     renderRecord();
+  }
+
+  /* --- Défi du jour et défis reçus par lien --- */
+  const urlSeed = (() => {
+    const raw = new URLSearchParams(location.search).get("d");
+    const n = raw ? parseInt(raw, 36) : NaN;
+    return Number.isFinite(n) && n > 0 ? n >>> 0 : null;
+  })();
+  const dayN = todayNumber();
+  const defiSeed = urlSeed ?? seedForDay(dayN);
+  const isReceived = urlSeed !== null && urlSeed !== seedForDay(dayN);
+  const dailyDone = () => store.json(STORE.done(defiSeed), null);
+
+  function renderDefi() {
+    const done = dailyDone();
+    el.defiTitle.textContent = isReceived ? "Défi reçu" : `Défi du jour nº ${dayN}`;
+    el.defiSub.textContent = done
+      ? `Déjà relevé : ${done.s} / ${TOTAL} — ${done.r}`
+      : isReceived
+        ? "Quelqu'un vous a envoyé exactement ce paquet"
+        : "Les mêmes 12 questions pour tout le monde";
+    el.modeDefi.classList.toggle("mode--done", !!done);
+  }
+
+  function buildSeededDeck(seed) {
+    const rng = mulberry32(seed);
+    const deck = [];
+    [1, 2, 3].forEach((lvl) => {
+      const pool = QUESTIONS.filter((q) => q.level === lvl);
+      shuffleWith(rng, pool).slice(0, PER_LEVEL).forEach((q) => {
+        deck.push(q.type === "spell"
+          ? { ...q, correct: q.answer }
+          : { ...q, correct: q.choices[0], shuffled: shuffleWith(rng, q.choices) });
+      });
+    });
+    return deck;
   }
 
   const prep = (q) => q.type === "spell"
@@ -560,6 +639,7 @@
   }
 
   function buildDeck() {
+    if (mode === "defi") return buildSeededDeck(defiSeed);
     if (mode === "survie") {
       return shuffle(poolFor(null)).map(prep);
     }
@@ -717,7 +797,7 @@
     }
 
     /* L'horloge de Vecna sonne à mi-parcours dans le Monde à l'Envers. */
-    if (state.ud && state.mode === "enquete" && state.i === TOTAL / 2) {
+    if (state.ud && state.mode !== "survie" && state.i === TOTAL / 2) {
       sfx.chime(0); sfx.chime(1);
       flash("L'horloge sonne");
     }
@@ -780,7 +860,7 @@
       : ok ? "<b>Exact.</b> " : `<b>Raté.</b> C'était «&nbsp;${q.correct}&nbsp;». `;    el.reveal.innerHTML = head + q.fact;
     el.reveal.classList.add("is-on");
 
-    const last = state.over || (state.mode === "enquete" && state.i === TOTAL - 1);
+    const last = state.over || (state.mode !== "survie" && state.i === TOTAL - 1);
     el.btnNext.hidden = false;
     el.btnNext.textContent = last ? "Voir le verdict" : "Suivant";
     el.btnNext.focus({ preventScroll: true });
@@ -790,7 +870,7 @@
     sfx.click();
     if (state.over) return finish();
     state.i++;
-    if (state.mode === "enquete" && state.i >= TOTAL) return finish();
+    if (state.mode !== "survie" && state.i >= TOTAL) return finish();
     render();
   }
 
@@ -811,7 +891,7 @@
 
   const pickRank = () => {
     const table = state.mode === "survie" ? SURVIVAL_RANKS : RANKS;
-    if (state.mode === "enquete" && state.score === 0) return ZERO_RANK;
+    if (state.mode !== "survie" && state.score === 0) return ZERO_RANK;
     return table.find((r) => state.score >= r.min && state.score <= r.max) || table[0];
   };
 
@@ -854,6 +934,12 @@
     show("result");
     if (state.score >= (state.mode === "survie" ? 10 : 9)) sfx.win();
 
+    if (state.mode === "defi") {
+      store.set(STORE.done(defiSeed), JSON.stringify({ s: state.score, r: rank.name, m: state.marks.join("") }));
+      renderDefi();
+      setMode("defi");
+    }
+
     const qualified = qualifies(state.score, state.mode, state.ud);
     renderBoard(state.mode, state.ud, -1);
 
@@ -863,6 +949,9 @@
     if (qualified) { await sleep(500); openInitials(); }
   }
 
+  const challengeURL = () =>
+    `${location.origin}${location.pathname}?d=${defiSeed.toString(36)}`;
+
   function shareText() {
     const grid = state.marks.slice(-24).reduce((acc, m, i) => {
       acc += m;
@@ -871,15 +960,17 @@
     }, "");
     const head = lastMode === "survie"
       ? `Hawkins Quiz — Survie : ${state.score} questions tenues ${lastUD ? "🙃" : "🧇"}`
-      : `Hawkins Quiz — ${state.score}/${TOTAL} ${lastUD ? "🙃" : "🧇"}`;
+      : lastMode === "defi"
+        ? `Hawkins Quiz — ${isReceived ? "Défi reçu" : `Défi nº ${dayN}`} : ${state.score}/${TOTAL} ${lastUD ? "🙃" : "🧇"}`
+        : `Hawkins Quiz — ${state.score}/${TOTAL} ${lastUD ? "🙃" : "🧇"}`;
     return [
       head,
       `Rang : ${lastRank ? lastRank.name : "—"}${lastUD ? "  ·  Mode Monde à l'Envers" : ""}`,
       "",
       grid,
       "",
-      "Survivrez-vous au Monde à l'Envers ?",
-      "https://sebplace.github.io/hawkins-quiz/"
+      lastMode === "defi" ? "Même paquet, même chance. À vous :" : "Survivrez-vous au Monde à l'Envers ?",
+      lastMode === "defi" ? challengeURL() : "https://sebplace.github.io/hawkins-quiz/"
     ].join("\n");
   }
 
@@ -900,6 +991,169 @@
     wallToken++;
     show("quiz");
     render();
+  }
+
+  /* ==================================================================
+     9 bis. Carte de score partageable, dessinée au canvas
+  ================================================================== */
+  const PALETTE = {
+    enquete: { a: "#e8112d", b: "#ffb648", bg: "#0b0a10" },
+    survie: { a: "#e8112d", b: "#ffb648", bg: "#0b0a10" },
+    defi: { a: "#3aa8ff", b: "#7ef9d0", bg: "#080b12" },
+    ud: { a: "#b14cff", b: "#ff3b7b", bg: "#06030c" }
+  };
+
+  async function buildCard() {
+    const W = 1080, H = 1350;
+    const c = document.createElement("canvas");
+    c.width = W; c.height = H;
+    const x = c.getContext("2d");
+    const pal = lastUD ? PALETTE.ud : (PALETTE[lastMode] || PALETTE.enquete);
+
+    try { await document.fonts.ready; } catch { /* polices système */ }
+
+    const bg = x.createRadialGradient(W / 2, -120, 60, W / 2, H * .55, H);
+    bg.addColorStop(0, lastUD ? "#170a2b" : "#1a1420");
+    bg.addColorStop(.55, pal.bg);
+    bg.addColorStop(1, "#04040a");
+    x.fillStyle = bg; x.fillRect(0, 0, W, H);
+
+    /* Grain léger, pour éviter l'aplat numérique */
+    x.globalAlpha = .05;
+    for (let i = 0; i < 2600; i++) {
+      x.fillStyle = Math.random() > .5 ? "#fff" : "#000";
+      x.fillRect(Math.random() * W, Math.random() * H, 2, 2);
+    }
+    x.globalAlpha = 1;
+
+    const center = (txt, y, font, fill, glow = 0) => {
+      x.font = font; x.textAlign = "center"; x.textBaseline = "alphabetic";
+      if (glow) { x.shadowColor = fill; x.shadowBlur = glow; }
+      x.fillStyle = fill; x.fillText(txt, W / 2, y);
+      x.shadowBlur = 0;
+    };
+
+    center("LE TEST OFFICIEUX DU FAN", 130, '500 26px "Space Grotesk", sans-serif', "#8c92a6");
+
+    /* Titre, contour seul comme dans l'app */
+    x.font = '400 140px "Rozha One", Georgia, serif';
+    x.textAlign = "center";
+    x.lineWidth = 4; x.strokeStyle = pal.a;
+    x.shadowColor = pal.a; x.shadowBlur = 38;
+    x.strokeText("HAWKINS", W / 2, 270);
+    x.font = '400 58px "Rozha One", Georgia, serif';
+    x.lineWidth = 3;
+    x.strokeText("Q U I Z", W / 2, 340);
+    x.shadowBlur = 0;
+
+    /* Bandeau du mode */
+    const modeTxt = lastMode === "survie" ? "MODE SURVIE"
+      : lastMode === "defi" ? (isReceived ? "DÉFI REÇU" : `DÉFI Nº ${dayN}`)
+      : "ENQUÊTE";
+    center(modeTxt + (lastUD ? "  ·  MONDE À L'ENVERS" : ""), 410,
+      '700 24px "Space Grotesk", sans-serif', pal.b);
+
+    /* Score */
+    const scoreTxt = lastMode === "survie" ? `${state.score}` : `${state.score}/${TOTAL}`;
+    center(scoreTxt, 620, '400 190px "Rozha One", Georgia, serif', "#f3ece0", 30);
+    center(lastMode === "survie" ? "QUESTIONS TENUES" : (lastUD ? "GOUTTES" : "GAUFRES"), 672,
+      '500 24px "Space Grotesk", sans-serif', "#8c92a6");
+
+    /* Rang */
+    x.font = '400 76px "Rozha One", Georgia, serif';
+    x.lineWidth = 2.5; x.strokeStyle = pal.a;
+    x.shadowColor = pal.a; x.shadowBlur = 26;
+    x.strokeText(lastRank ? lastRank.name : "—", W / 2, 790);
+    x.shadowBlur = 0;
+
+    /* Phrase du rang, sur deux lignes au besoin */
+    const words = (lastRank ? lastRank.line : "").split(" ");
+    const lines = [];
+    let line = "";
+    x.font = '400 30px "Space Grotesk", sans-serif';
+    words.forEach((w) => {
+      const test = line ? `${line} ${w}` : w;
+      if (x.measureText(test).width > W - 260 && line) { lines.push(line); line = w; }
+      else line = test;
+    });
+    if (line) lines.push(line);
+    lines.slice(0, 3).forEach((l, i) => center(l, 850 + i * 44, '400 30px "Space Grotesk", sans-serif', "#9aa0b4"));
+
+    /* Grille de résultats, dessinée à la main : le rendu des émojis en canvas
+       dépend des polices installées, on ne peut pas s'y fier. */
+    const marks = state.marks.slice(-12);
+    const cell = 74, gap = 14;
+    const gy = 1000;
+    marks.forEach((m, i) => {
+      const r = Math.floor(i / 6), col = i % 6;
+      const rowCount = Math.min(marks.length - r * 6, 6);
+      const rw = rowCount * cell + (rowCount - 1) * gap;
+      const px = (W - rw) / 2 + col * (cell + gap);
+      const py = gy + r * (cell + gap);
+      const ok = m === "🧇" || m === "🩸";
+      const late = m === "⏳";
+
+      x.fillStyle = ok ? "rgba(255,182,72,.16)" : late ? "rgba(255,255,255,.05)" : "rgba(232,17,45,.16)";
+      x.strokeStyle = ok ? pal.b : late ? "#6a7188" : "#e8112d";
+      x.lineWidth = 3;
+      x.beginPath(); x.roundRect(px, py, cell, cell, 16); x.fill(); x.stroke();
+
+      const cx = px + cell / 2, cy = py + cell / 2, s = 15;
+      x.lineWidth = 4; x.lineCap = "round";
+      x.beginPath();
+      if (ok) {                                  // gaufre : une petite grille
+        for (const d of [-s / 2, s / 2]) {
+          x.moveTo(cx - s, cy + d); x.lineTo(cx + s, cy + d);
+          x.moveTo(cx + d, cy - s); x.lineTo(cx + d, cy + s);
+        }
+      } else if (late) {                         // sablier
+        x.moveTo(cx - s, cy - s); x.lineTo(cx + s, cy - s);
+        x.lineTo(cx - s, cy + s); x.lineTo(cx + s, cy + s);
+        x.closePath();
+      } else {                                   // croix
+        x.moveTo(cx - s, cy - s); x.lineTo(cx + s, cy + s);
+        x.moveTo(cx + s, cy - s); x.lineTo(cx - s, cy + s);
+      }
+      x.stroke();
+    });
+
+    /* Pied */
+    const foot = lastMode === "defi" ? challengeURL().replace(/^https?:\/\//, "") : "sebplace.github.io/hawkins-quiz";
+    center(foot, H - 110, '500 26px "Space Grotesk", sans-serif', "#6a7188");
+    center("Projet de fan non officiel · sans affiliation avec Netflix", H - 64,
+      '400 20px "Space Grotesk", sans-serif', "#4d5468");
+
+    return new Promise((res) => c.toBlob(res, "image/png"));
+  }
+
+  let cardBusy = false;
+  async function shareCard() {
+    if (cardBusy) return;
+    cardBusy = true;
+    el.btnCard.disabled = true;
+    el.btnCard.textContent = "Dessin en cours…";
+    let label = "Carte à partager";
+    try {
+      const blob = await buildCard();
+      const file = new File([blob], "hawkins-quiz.png", { type: "image/png" });
+      if (navigator.canShare?.({ files: [file] })) {
+        /* On n'attend pas la feuille de partage : elle peut rester ouverte longtemps. */
+        navigator.share({ files: [file], text: shareText() }).catch(() => { /* annulé */ });
+        label = "Partage ouvert";
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = "hawkins-quiz.png"; a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+        label = "Image enregistrée";
+      }
+    } catch {
+      label = "Échec du dessin";
+    }
+    el.btnCard.textContent = label;
+    el.btnCard.disabled = false;
+    cardBusy = false;
+    setTimeout(() => { if (!cardBusy) el.btnCard.textContent = "Carte à partager"; }, 2400);
   }
 
   /* ==================================================================
@@ -983,6 +1237,8 @@
   el.udToggle.addEventListener("click", () => { sfx.click(); setUD(!udOn); });
   el.modeEnquete.addEventListener("click", () => { sfx.click(); setMode("enquete"); });
   el.modeSurvie.addEventListener("click", () => { sfx.click(); setMode("survie"); });
+  el.modeDefi.addEventListener("click", () => { sfx.click(); setMode("defi"); });
+  el.btnCard.addEventListener("click", shareCard);
   el.iniBack.addEventListener("click", popInitial);
   el.iniOk.addEventListener("click", commitInitials);
   el.spellBack.addEventListener("click", popSpell);
@@ -1026,7 +1282,13 @@
   if (udUnlocked) setUD(udOn, true);
   renderSecrets();
   renderSeasons();
-  setMode("enquete");
+  renderDefi();
+  setMode(urlSeed !== null ? "defi" : "enquete");
+
+  /* Service worker : l'app reste jouable hors ligne. */
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => { /* pas grave */ }));
+  }
 
   (async () => {
     await sleep(700);

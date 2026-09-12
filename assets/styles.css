@@ -436,6 +436,14 @@ kbd {
 .only-survie { display: none; }
 body.mode-survie .only-survie { display: list-item; }
 body.mode-survie .only-enquete { display: none; }
+.only-defi { display: none; }
+body.mode-defi .only-defi { display: list-item; }
+body.mode-defi .only-enquete, body.mode-defi .only-survie { display: none; }
+body.mode-defi .seasons { opacity: .35; pointer-events: none; }
+.modes { grid-template-areas: "a b" "c c"; }
+.mode--wide { grid-area: c; }
+.mode--done { border-style: dashed; }
+.mode--done b { color: var(--accent-2) !important; }
 
 /* ---------- Filtre par saison ---------- */
 .seasons {

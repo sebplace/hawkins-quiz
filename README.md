@@ -19,6 +19,10 @@ et se remplir de spores.
 | **Chrono Démogorgon** | Pas une barre de progression : une créature dessinée en SVG qui traverse l'écran vers vous et ouvre sa fleur quand il ne reste presque plus rien. |
 | **Deux modes** | *Enquête* (12 questions, 3 dimensions) et *Survie* (jusqu'à la première erreur, chrono qui ne remonte jamais). |
 | **Tableau d'honneur** | Top 10 local par mode, initiales gravées en tapant trois lettres sur le mur. Comme au Palace Arcade. |
+| **Défi du jour** | Les mêmes 12 questions pour tout le monde, tirées par la date. Une seule tentative, numéro de partie dans le partage. |
+| **Lien de défi** | Chaque défi porte une graine dans son URL&nbsp;: envoyez-la, votre adversaire joue exactement le même paquet. |
+| **Carte de score** | Une image PNG 1080 × 1350 dessinée au canvas, prête pour une story. Tout est tracé à la main, aucun émoji requis. |
+| **Installable, hors ligne** | PWA complète&nbsp;: icône sur l'écran d'accueil, lancement sans réseau, service worker qui n'emprisonne jamais l'utilisateur sur une vieille version. |
 | **3 phases visuelles** | Palette, scanlines CRT, vignette, spores et inclinaison de la page changent à chaque niveau. |
 | **Score en Eggo** | Parce que les points, c'est pour les gens qui n'ont pas de congélateur. |
 | **7 rangs + 1 secret** | De *Barb* (« personne n'a lancé d'avis de recherche ») à *Eleven*. Plus 7 rangs dédiés à la Survie. |
@@ -66,18 +70,25 @@ réponses sur deux colonnes pour tenir dans 390 px de haut.
 
 ## Technique
 
-Zéro dépendance, zéro build, zéro tracker. Trois fichiers statiques :
+Zéro dépendance, zéro build, zéro tracker. Des fichiers statiques :
 
 ```
 index.html
+manifest.webmanifest
+sw.js             ← service worker : HTML par le réseau, assets par le cache
 assets/
-  styles.css     ← thèmes par phase, mode Monde à l'Envers, mur, animations
-  app.js         ← moteur de quiz, Web Audio, secrets du mur, easter eggs
-  questions.js   ← banque de questions + rangs
+  styles.css      ← thèmes par phase, mode Monde à l'Envers, mur, animations
+  app.js          ← moteur, Web Audio, secrets, défi du jour, carte canvas
+  questions.js    ← banque de questions + rangs
+  icon-*.png      ← icônes PWA, générées depuis un SVG dessiné à la main
 ```
 
-Tout l'habillage est dessiné en CSS/SVG inline. Pas une seule image bitmap.
-L'ensemble pèse moins de 50 Ko hors polices.
+Les URL des assets portent un `?v=N` incrémenté à chaque livraison. Comme le
+service worker sert le HTML par le réseau en priorité, une nouvelle version du
+HTML demande automatiquement de nouvelles URL : personne ne reste bloqué sur un
+mélange d'ancien JS et de nouveau HTML.
+
+L'ensemble pèse moins de 150 Ko hors polices.
 
 **Lancer en local :**
 

@@ -13,10 +13,16 @@
 <meta property="og:type" content="website">
 
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#127851;</text></svg>">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Hawkins Quiz">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Rozha+One&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/styles.css">
+<link rel="stylesheet" href="assets/styles.css?v=4">
 </head>
 
 <body class="phase-0">
@@ -55,6 +61,9 @@
       <button class="mode" id="modeSurvie" type="button" aria-pressed="false">
         <b>Survie</b><span>Jusqu'à la première erreur</span>
       </button>
+      <button class="mode mode--wide" id="modeDefi" type="button" aria-pressed="false">
+        <b id="defiTitle">Défi du jour</b><span id="defiSub">Les mêmes 12 questions pour tout le monde</span>
+      </button>
     </div>
 
     <p class="record" id="record" hidden></p>
@@ -77,13 +86,15 @@
     </div>
 
     <ul class="rules">
-      <li class="only-enquete"><b>12 questions</b> tirées au hasard parmi 30</li>
+      <li class="only-enquete"><b>12 questions</b> tirées parmi 91, sans jamais repasser les mêmes</li>
       <li class="only-enquete only-normal">Le décor s'assombrit à mesure que vous progressez&nbsp;: Hawkins → le labo → <i>le Monde à l'Envers</i></li>
       <li class="only-enquete only-normal">Le chrono raccourcit à chaque dimension. Zéro seconde = zéro gaufre</li>
       <li class="only-enquete only-ud">Trois strates, <b>aucune sortie</b>&nbsp;: Hawkins noyé → le labo mort → chez lui</li>
       <li class="only-enquete only-ud">Chrono réduit de moitié&nbsp;: <b>15 s, 12 s, 10 s</b>. Les questions arrivent à l'envers</li>
       <li class="only-survie"><b>Une seule erreur</b> et la chasse s'arrête. Pas de deuxième chance</li>
       <li class="only-survie">Le chrono perd une demi-seconde à chaque question. Il ne remonte jamais</li>
+      <li class="only-defi"><b>Les mêmes 12 questions pour tout le monde</b>, tirées par la date du jour</li>
+      <li class="only-defi">Une seule tentative. Le filtre de saisons ne s'applique pas&nbsp;: tout le monde joue le même paquet</li>
       <li class="only-keys">Clavier&nbsp;: touches <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd></li>
       <li class="rules__hint">Il paraît que le mur répond, si on lui parle.</li>
     </ul>
@@ -175,6 +186,7 @@
     <div class="result__actions">
       <button class="btn btn--primary" id="btnReplay" type="button">Rejouer</button>
       <button class="btn btn--ghost" id="btnShare" type="button">Copier mon score</button>
+      <button class="btn btn--ghost" id="btnCard" type="button">Carte à partager</button>
     </div>
   </section>
 
@@ -185,7 +197,7 @@
   <p><a href="https://github.com/sebplace/hawkins-quiz">Code source</a> · MIT</p>
 </footer>
 
-<script src="assets/questions.js"></script>
-<script src="assets/app.js"></script>
+<script src="assets/questions.js?v=4"></script>
+<script src="assets/app.js?v=4"></script>
 </body>
 </html>
