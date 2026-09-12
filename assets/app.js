@@ -34,7 +34,7 @@
 
   const BULB_COLORS = ["#ff2f45", "#ffc13b", "#3ddc84", "#3aa8ff", "#b14cff", "#ff7a2f"];
   const STORE = {
-    ud: "hq.ud", udOn: "hq.udOn", secrets: "hq.secrets",
+    ud: "hq.ud", udOn: "hq.udOn", secrets: "hq.secrets", seen: "hq.seen", seasons: "hq.seasons",
     board: (mode) => `hq.board.${mode}`
   };
 
@@ -50,11 +50,13 @@
     btnNext: $("btnNext"), btnReplay: $("btnReplay"), btnShare: $("btnShare"),
     udToggle: $("udToggle"), udLabel: $("udLabel"), secrets: $("secrets"),
     modeEnquete: $("modeEnquete"), modeSurvie: $("modeSurvie"), record: $("record"),
+    seasons: [...document.querySelectorAll(".season")],
     brandTitle: $("brandTitle"), scoreBtn: $("scoreBtn"), scoreIcon: $("scoreIcon"),
     phaseName: $("phaseName"), progress: $("progress"), score: $("score"),
     hunt: $("hunt"), huntFill: $("huntFill"), demo: $("demo"), timerVal: $("timerVal"),
     strike: $("strike"),
     qLevel: $("qLevel"), qText: $("qText"), choices: $("choices"), reveal: $("reveal"),
+    spell: $("spell"), spellSlots: $("spellSlots"), wallQuiz: $("wallQuiz"), spellBack: $("spellBack"),
     streak: $("streak"), stats: $("stats"), marks: $("marks"), badge: $("badge"),
     rankName: $("rankName"), rankLine: $("rankLine"), spores: $("spores"),
     initials: $("initials"), iniSlots: $("iniSlots"), iniBack: $("iniBack"), iniOk: $("iniOk"),
@@ -506,21 +508,71 @@
     renderRecord();
   }
 
-  const prep = (q) => ({ ...q, correct: q.choices[0], shuffled: shuffle(q.choices) });
+  const prep = (q) => q.type === "spell"
+    ? { ...q, correct: q.answer }
+    : { ...q, correct: q.choices[0], shuffled: shuffle(q.choices) };
+
+  /* --- Saisons retenues pour le tirage --- */
+  let seasons = new Set(store.json(STORE.seasons, [1, 2, 3, 4]));
+
+  function renderSeasons() {
+    el.seasons.forEach((b) => {
+      const on = seasons.has(Number(b.dataset.s));
+      b.classList.toggle("is-on", on);
+      b.setAttribute("aria-pressed", String(on));
+    });
+  }
+
+  function toggleSeason(n) {
+    if (seasons.has(n)) {
+      if (seasons.size === 1) return flash("Il faut bien garder une saison");
+      seasons.delete(n);
+    } else seasons.add(n);
+    store.set(STORE.seasons, JSON.stringify([...seasons]));
+    renderSeasons();
+  }
+
+  /* --- Anti-répétition : on retient ce qui a déjà été posé --- */
+  const qid = (q) => {
+    let h = 0;
+    for (let i = 0; i < q.q.length; i++) h = (Math.imul(31, h) + q.q.charCodeAt(i)) | 0;
+    return h;
+  };
+  let seen = new Set(store.json(STORE.seen, []));
+  const saveSeen = () => store.set(STORE.seen, JSON.stringify([...seen]));
+
+  function poolFor(level) {
+    const all = QUESTIONS.filter((q) => level === null || q.level === level);
+    const filtered = all.filter((q) => seasons.has(q.s));
+    /* Si le filtre de saisons assèche un niveau, on rouvre tout pour ce niveau. */
+    return filtered.length >= PER_LEVEL ? filtered : all;
+  }
+
+  function drawFresh(pool, n) {
+    let fresh = pool.filter((q) => !seen.has(qid(q)));
+    if (fresh.length < n) {
+      pool.forEach((q) => seen.delete(qid(q)));   // banque épuisée : on repart à zéro
+      fresh = pool.slice();
+    }
+    const picked = shuffle(fresh).slice(0, n);
+    picked.forEach((q) => seen.add(qid(q)));
+    return picked;
+  }
 
   function buildDeck() {
-    if (mode === "survie") return shuffle(QUESTIONS).map(prep);
+    if (mode === "survie") {
+      return shuffle(poolFor(null)).map(prep);
+    }
     const deck = [];
-    [1, 2, 3].forEach((lvl) => {
-      shuffle(QUESTIONS.filter((q) => q.level === lvl)).slice(0, PER_LEVEL).forEach((q) => deck.push(prep(q)));
-    });
+    [1, 2, 3].forEach((lvl) => drawFresh(poolFor(lvl), PER_LEVEL).forEach((q) => deck.push(prep(q))));
+    saveSeen();
     return deck;
   }
 
   /* En Survie, on recycle le paquet indéfiniment. */
   function currentQuestion() {
     if (state.i < state.deck.length) return state.deck[state.i];
-    state.deck = state.deck.concat(shuffle(QUESTIONS).map(prep));
+    state.deck = state.deck.concat(shuffle(poolFor(null)).map(prep));
     return state.deck[state.i];
   }
 
@@ -548,11 +600,12 @@
   }
 
   function durationFor(q, i) {
+    const bonus = q && q.type === "spell" ? 8 : 0;   // épeler prend plus de temps que cliquer
     if (state.mode === "survie") {
       const s = state.ud ? SURV_UD : SURV;
-      return Math.max(s.floor, s.start - i * s.step);
+      return Math.max(s.floor, s.start - i * s.step) + bonus;
     }
-    return (state.ud ? TIME_UD : TIME)[q.level];
+    return (state.ud ? TIME_UD : TIME)[q.level] + bonus;
   }
 
   function startTimer(seconds) {
@@ -586,6 +639,43 @@
     state.raf = requestAnimationFrame(loop);
   }
 
+  /* --- Questions à épeler : le mur devient le clavier --- */
+  let spellActive = false;
+  let spelled = [];
+  let spellLen = 0;
+
+  function renderSpellSlots(verdict) {
+    const target = currentQuestion().correct;
+    el.spellSlots.innerHTML = Array.from({ length: spellLen }, (_, i) => {
+      let cls = "spell__slot";
+      if (verdict) cls += spelled[i] === target[i] ? " is-ok" : " is-ko";
+      else if (i === spelled.length) cls += " is-next";
+      return `<div class="${cls}">${spelled[i] || ""}</div>`;
+    }).join("");
+  }
+
+  function pushSpell(L, cell) {
+    if (!spellActive || spelled.length >= spellLen) return;
+    spelled.push(L);
+    if (cell) {
+      cell.classList.add("on");
+      setTimeout(() => cell.classList.remove("on"), 400);
+    }
+    sfx.bulb(); buzz(8);
+    renderSpellSlots();
+    if (spelled.length === spellLen) {
+      spellActive = false;
+      setTimeout(() => answer(spelled.join("")), 350);
+    }
+  }
+
+  function popSpell() {
+    if (!spellActive || !spelled.length) return;
+    spelled.pop();
+    sfx.click();
+    renderSpellSlots();
+  }
+
   function render() {
     const q = currentQuestion();
     setPhase(phaseFor(q, state.i));
@@ -605,14 +695,26 @@
     el.btnNext.hidden = true;
     el.choices.innerHTML = "";
 
-    q.shuffled.forEach((choice, idx) => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "choice";
-      b.innerHTML = `<span class="choice__key">${idx + 1}</span><span>${choice}</span>`;
-      b.addEventListener("click", () => answer(choice));
-      el.choices.appendChild(b);
-    });
+    const isSpell = q.type === "spell";
+    el.choices.hidden = isSpell;
+    el.spell.hidden = !isSpell;
+    spellActive = isSpell;
+    spelled = [];
+
+    if (isSpell) {
+      spellLen = q.correct.length;
+      clearWall(el.wallQuiz);
+      renderSpellSlots();
+    } else {
+      q.shuffled.forEach((choice, idx) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "choice";
+        b.innerHTML = `<span class="choice__key">${idx + 1}</span><span>${choice}</span>`;
+        b.addEventListener("click", () => answer(choice));
+        el.choices.appendChild(b);
+      });
+    }
 
     /* L'horloge de Vecna sonne à mi-parcours dans le Monde à l'Envers. */
     if (state.ud && state.mode === "enquete" && state.i === TOTAL / 2) {
@@ -627,6 +729,7 @@
   function answer(choice) {
     if (state.locked) return;
     state.locked = true;
+    spellActive = false;
     cancelAnimationFrame(state.raf);
 
     const q = currentQuestion();
@@ -634,13 +737,18 @@
     state.times.push(Math.min(elapsed, state.duration / 1000));
     const ok = choice === q.correct;
 
-    [...el.choices.children].forEach((b) => {
-      const txt = b.lastElementChild.textContent;
-      b.disabled = true;
-      if (txt === q.correct) b.classList.add("is-correct");
-      else if (txt === choice) b.classList.add("is-wrong");
-      else b.classList.add("is-faded");
-    });
+    if (q.type === "spell") {
+      renderSpellSlots(true);
+      spell(el.wallQuiz, q.correct, { keep: true, on: 130, gap: 45 });
+    } else {
+      [...el.choices.children].forEach((b) => {
+        const txt = b.lastElementChild.textContent;
+        b.disabled = true;
+        if (txt === q.correct) b.classList.add("is-correct");
+        else if (txt === choice) b.classList.add("is-wrong");
+        else b.classList.add("is-faded");
+      });
+    }
 
     if (ok) {
       el.hunt.classList.remove("is-close");
@@ -669,8 +777,7 @@
 
     const head = choice === null
       ? "<b>Trop tard.</b> Le Démogorgon n'attend pas. "
-      : ok ? "<b>Exact.</b> " : `<b>Raté.</b> C'était «&nbsp;${q.correct}&nbsp;». `;
-    el.reveal.innerHTML = head + q.fact;
+      : ok ? "<b>Exact.</b> " : `<b>Raté.</b> C'était «&nbsp;${q.correct}&nbsp;». `;    el.reveal.innerHTML = head + q.fact;
     el.reveal.classList.add("is-on");
 
     const last = state.over || (state.mode === "enquete" && state.i === TOTAL - 1);
@@ -828,6 +935,15 @@
       return;
     }
 
+    /* Question à épeler : le clavier sert à composer, pas à déclencher les secrets. */
+    if (spellActive) {
+      if (/^[a-zA-Z]$/.test(e.key)) {
+        const L = e.key.toUpperCase();
+        pushSpell(L, el.wallQuiz.querySelector(`.wall__cell[data-letter="${L}"]`));
+      } else if (e.key === "Backspace") { e.preventDefault(); popSpell(); }
+      return;
+    }
+
     /* Réponses au clavier */
     if (screens.quiz.classList.contains("is-active")) {
       if (!state.locked && /^[1-4]$/.test(e.key)) {
@@ -869,6 +985,8 @@
   el.modeSurvie.addEventListener("click", () => { sfx.click(); setMode("survie"); });
   el.iniBack.addEventListener("click", popInitial);
   el.iniOk.addEventListener("click", commitInitials);
+  el.spellBack.addEventListener("click", popSpell);
+  el.seasons.forEach((b) => b.addEventListener("click", () => { sfx.click(); toggleSeason(Number(b.dataset.s)); }));
 
   el.btnSound.addEventListener("click", () => {
     const on = sfx.toggle();
@@ -899,6 +1017,7 @@
   ================================================================== */
   buildWall(el.wall, tapLetter);
   buildWall(el.wallResult, (L, cell) => pushInitial(L, cell));
+  buildWall(el.wallQuiz, (L, cell) => pushSpell(L, cell));
   buildSpores();
   body.classList.remove("phase-0");
   body.classList.add("phase-1");
@@ -906,6 +1025,7 @@
   el.udToggle.hidden = !udUnlocked;
   if (udUnlocked) setUD(udOn, true);
   renderSecrets();
+  renderSeasons();
   setMode("enquete");
 
   (async () => {

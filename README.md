@@ -26,8 +26,12 @@ et se remplir de spores.
 | **Partage façon Wordle** | 🧇🧇💀🧇 │ 🧇🧇🧇⏳ │ 🧇💀🧇🧇 — copié en un clic (ou via le partage natif du téléphone). |
 | **Saignements de nez** | À partir de 3 bonnes réponses d'affilée. C'est le prix du talent. |
 
-30 questions en banque, 12 tirées au hasard à chaque partie : la rejouabilité est
-volontairement élevée.
+**91 questions** en banque, 12 tirées à chaque partie, **sans jamais repasser deux
+fois la même tant que la banque n'est pas épuisée** : sept parties d'affilée sans
+un seul doublon. Un filtre permet de restreindre le tirage à une ou plusieurs saisons.
+
+Dix questions ne proposent aucun choix multiple : **il faut épeler la réponse**,
+lettre par lettre, sur un mur d'alphabet miniature. Le décor devient la manette.
 
 ## Le mur parle
 
@@ -93,17 +97,34 @@ python -m http.server 8080
 
 ## Ajouter vos propres questions
 
-Ouvrez `assets/questions.js` et ajoutez un objet. **La bonne réponse est toujours
-la première du tableau `choices`** — le mélange est fait à l'exécution.
+Ouvrez `assets/questions.js` et ajoutez un objet. Deux formes sont acceptées.
+
+**Choix multiple** — **la bonne réponse est toujours la première du tableau
+`choices`** ; le mélange est fait à l'exécution.
 
 ```js
 {
   level: 2,                               // 1 = facile, 2 = moyen, 3 = difficile
+  s: 3,                                   // saison de référence (1 à 4)
   q: "Votre question ?",
   choices: ["La bonne", "Une fausse", "Une autre", "Encore une"],
   fact: "L'anecdote drôle affichée après la réponse."
 }
 ```
+
+**Réponse à épeler** — un seul mot, de 3 à 9 lettres, sans accent ni espace.
+
+```js
+{
+  level: 3, s: 1, type: "spell",
+  q: "Épelez le nom de famille de Vecna, celui de sa naissance.",
+  answer: "CREEL",
+  fact: "L'anecdote drôle affichée après la réponse."
+}
+```
+
+Gardez au moins **quatre questions par couple niveau × saison**, sinon le filtre
+de saisons se rabat silencieusement sur l'ensemble de la banque pour ce niveau.
 
 ## Mentions
 

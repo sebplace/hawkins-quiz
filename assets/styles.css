@@ -180,6 +180,8 @@ body.phase-3 .wall { filter: saturate(.35) brightness(.55) hue-rotate(230deg); }
 body.ud #wall { filter: saturate(.5) brightness(.6) hue-rotate(208deg) contrast(1.3); }
 /* Le mur du verdict reste lisible : c'est le moment de récompense. */
 body.phase-3 #wallResult, body.ud #wallResult { filter: saturate(.8) brightness(.85) hue-rotate(195deg); }
+/* Le mur de jeu sert à répondre : il ne doit jamais devenir illisible. */
+body.phase-3 #wallQuiz, body.ud #wallQuiz { filter: saturate(.9) brightness(.95) hue-rotate(196deg); }
 
 .wall__row {
   position: relative;
@@ -434,6 +436,54 @@ kbd {
 .only-survie { display: none; }
 body.mode-survie .only-survie { display: list-item; }
 body.mode-survie .only-enquete { display: none; }
+
+/* ---------- Filtre par saison ---------- */
+.seasons {
+  display: flex; align-items: center; justify-content: center; gap: .4rem;
+  flex-wrap: wrap; margin: 0 auto 1.4rem;
+}
+.seasons__label {
+  font-size: .64rem; letter-spacing: .24em; text-transform: uppercase;
+  color: var(--muted); margin-right: .3rem;
+}
+.season {
+  font: inherit; font-size: .72rem; font-weight: 700; letter-spacing: .12em;
+  min-width: 44px; min-height: 34px; padding: .4rem .7rem; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--line); background: rgba(255, 255, 255, .02); color: var(--muted);
+  transition: color .2s, border-color .2s, background .2s;
+}
+.season.is-on { color: var(--fg); border-color: var(--accent); background: rgba(255, 255, 255, .06); }
+.season:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+
+/* ---------- Questions à épeler ---------- */
+.spell__slots {
+  display: flex; justify-content: center; align-items: flex-end;
+  gap: clamp(.25rem, 1vw, .4rem); flex-wrap: nowrap; margin-bottom: 1rem;
+}
+.spell__slot {
+  flex: 0 0 auto;
+  width: clamp(26px, 8vw, 38px); height: clamp(36px, 10vw, 48px);
+  display: grid; place-items: center;
+  border-bottom: 3px solid var(--line); border-radius: 4px;
+  font-family: "Rozha One", Georgia, serif; font-size: clamp(1.05rem, 4vw, 1.6rem); color: var(--fg);
+  background: rgba(255, 255, 255, .03);
+}
+.spell__slot.is-next { border-bottom-color: var(--accent); animation: blink 1s steps(2) infinite; }
+.spell__slot.is-ok { border-bottom-color: #2ee6a8; color: #2ee6a8; }
+.spell__slot.is-ko { border-bottom-color: var(--blood); color: var(--blood-soft); }
+.wall--mini { --bulb: 9px; margin: 0 auto .8rem; max-width: 480px; padding: .7rem .5rem .5rem; }
+.wall--mini .wall__cell { min-height: 38px; }
+.wall--mini .wall__letter { font-size: clamp(.62rem, 2.2vw, .85rem); }
+.spell__hint {
+  margin: 0; text-align: center; font-size: .76rem; color: var(--muted);
+  display: flex; align-items: center; justify-content: center; gap: .6rem; flex-wrap: wrap;
+}
+.spell__back {
+  font: inherit; font-size: .68rem; letter-spacing: .14em; text-transform: uppercase;
+  padding: .35rem .8rem; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line); background: none; color: var(--muted);
+}
+.spell__back:hover { color: var(--fg); border-color: var(--accent); }
 
 /* ---------- Saisie des initiales, façon borne d'arcade ---------- */
 .initials {

@@ -59,6 +59,14 @@
 
     <p class="record" id="record" hidden></p>
 
+    <div class="seasons" role="group" aria-label="Saisons incluses dans le tirage">
+      <span class="seasons__label">Saisons</span>
+      <button class="season is-on" id="s1" data-s="1" type="button" aria-pressed="true">S1</button>
+      <button class="season is-on" id="s2" data-s="2" type="button" aria-pressed="true">S2</button>
+      <button class="season is-on" id="s3" data-s="3" type="button" aria-pressed="true">S3</button>
+      <button class="season is-on" id="s4" data-s="4" type="button" aria-pressed="true">S4</button>
+    </div>
+
     <div class="intro__actions">
       <button class="btn btn--primary" id="btnStart" type="button">
         <span id="startLabel">Entrer dans le sous-sol</span>
@@ -125,6 +133,16 @@
       <p class="card__level" id="qLevel">Niveau 1 — Sous-sol des Wheeler</p>
       <h2 class="card__q" id="qText">…</h2>
       <div class="choices" id="choices" role="group" aria-label="Réponses possibles"></div>
+
+      <div class="spell" id="spell" hidden>
+        <div class="spell__slots" id="spellSlots" role="status" aria-live="polite"></div>
+        <div class="wall wall--mini" id="wallQuiz" aria-hidden="true"></div>
+        <p class="spell__hint">
+          Composez la réponse sur le mur, ou tapez-la au clavier.
+          <button class="spell__back" id="spellBack" type="button">Effacer</button>
+        </p>
+      </div>
+
       <div class="reveal" id="reveal" aria-live="polite"></div>
     </article>
 
