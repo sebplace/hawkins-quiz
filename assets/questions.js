@@ -58,7 +58,7 @@ const QUESTIONS = [
     level: 1, s: 1,
     q: "Comment les gamins baptisent-ils le monstre de la saison 1 ?",
     choices: ["Le Démogorgon", "Le Mind Flayer", "Vecna", "Le Demodog"],
-    fact: "Nom emprunté à leur manuel de D&D. Le branding avant la survie."
+    fact: "Le nom vient de leur propre partie de Donjons & Dragons : Eleven l'a identifié en posant la figurine du monstre sur le plateau."
   },
   {
     level: 1, s: 1,
@@ -173,20 +173,20 @@ const QUESTIONS = [
   },
   {
     level: 1, s: 3,
-    q: "Comment Erica Sinclair se rend-elle indispensable dans la base russe ?",
+    q: "Comment Erica Sinclair se rend-elle indispensable à l'équipe ?",
     choices: [
-      "Elle est la seule à passer dans les conduits",
+      "Elle seule tient dans les gaines du centre commercial",
       "Elle parle russe couramment",
       "Elle pirate l'ordinateur central",
       "Elle conduit le camion"
     ],
-    fact: "La seule assez petite pour passer, et la seule à avoir négocié un salaire."
+    fact: "Aucun des trois autres ne passait dans les conduits. Elle a négocié des glaces à volonté avant de s'engager."
   },
   {
     level: 1, s: 4,
     q: "Qui est la première victime de Vecna en saison 4 ?",
     choices: ["Chrissy Cunningham", "Fred Benson", "Patrick McKinney", "Max Mayfield"],
-    fact: "Chrissy. La série ne prend jamais de gants pour son premier épisode."
+    fact: "Chrissy Cunningham, chef des pom-pom girls. Première de la vague de 1986 — Henry Creel avait déjà tué en 1959, puis en 1979."
   },
   {
     level: 1, s: 4,
@@ -213,6 +213,39 @@ const QUESTIONS = [
     fact: "Byers. La famille la plus éprouvée d'Indiana, et de loin."
   },
   {
+    level: 1, s: 1, type: "vf",
+    q: "Le Démogorgon doit son nom au manuel de Donjons & Dragons des garçons.",
+    answer: true,
+    fact: "Vrai. Le monstre de leur campagne a donné son nom au vrai. Le jeu servira encore deux fois : Mind Flayer, puis Vecna."
+  },
+  {
+    level: 1, s: 1, type: "vf",
+    q: "Barb est retrouvée vivante à la fin de la saison 1.",
+    answer: false,
+    fact: "Faux, et c'est peu de le dire. Il faudra attendre la saison 2 pour que quelqu'un s'en préoccupe vraiment."
+  },
+  {
+    level: 1, s: 1, type: "draw",
+    art: "gaufre",
+    q: "Quel objet est dessiné ici ?",
+    choices: ["Une gaufre", "Un gaufrier", "Une plaque d'égout", "Un damier"],
+    fact: "Une gaufre. La seule denrée capable de faire sortir Eleven d'une cachette."
+  },
+  {
+    level: 1, s: 1, type: "draw",
+    art: "talkie",
+    q: "Quel appareil le Party utilise-t-il pour rester en contact ?",
+    choices: ["Un talkie-walkie", "Une calculatrice", "Un poste de radio", "Un détecteur de métaux"],
+    fact: "Le talkie-walkie : le réseau du Party, avec une portée théorique très optimiste."
+  },
+  {
+    level: 1, s: 2, type: "draw",
+    art: "de20",
+    q: "Par quel objet toute l'histoire a-t-elle commencé ?",
+    choices: ["Un dé à vingt faces", "Un diamant", "Un ballon de football", "Une boule à facettes"],
+    fact: "Le dé à vingt faces. Celui que Will a lancé au début de tout — et qui est tombé sur un sept."
+  },
+  {
     level: 1, s: 1, type: "spell",
     q: "Épelez la marque de gaufres qui sert de monnaie d'échange à Eleven.",
     answer: "EGGO",
@@ -223,6 +256,186 @@ const QUESTIONS = [
     q: "Épelez le prénom de la petite sœur de Lucas, redoutable négociatrice.",
     answer: "ERICA",
     fact: "Erica Sinclair. Tarif : glaces à volonté. Non négociable."
+  },
+
+  /* ================================================================
+     SAISON 5 — HAWKINS SOUS QUARANTAINE (novembre 1987)
+     Uniquement des faits recoupés par au moins deux sources.
+     Les points signalés contradictoires par la vérification (écart
+     temporel S4-S5, sort de Nancy et Jonathan, durées d'épisodes)
+     sont volontairement absents.
+  ================================================================ */
+  {
+    level: 1, s: 5,
+    q: "En quelle année se déroule la saison 5 ?",
+    choices: ["1987", "1985", "1986", "1988"],
+    fact: "Novembre 1987. Quatre ans, presque jour pour jour, après la disparition de Will."
+  },
+  {
+    level: 1, s: 5,
+    q: "Dans quel état se trouve Hawkins au début de la saison 5 ?",
+    choices: [
+      "Sous quarantaine militaire",
+      "Entièrement évacuée",
+      "Rebâtie et prospère",
+      "Rayée des cartes"
+    ],
+    fact: "Quarantaine depuis l'ouverture des failles, en mars 1986. Il y a plus de militaires que d'habitants."
+  },
+  {
+    level: 1, s: 5,
+    q: "Où Steve et Robin travaillent-ils en saison 5 ?",
+    choices: [
+      "À la station de radio WSQK",
+      "Au vidéoclub Family Video",
+      "Chez Scoops Ahoy",
+      "À la bibliothèque municipale"
+    ],
+    fact: "« The Squawk ». Robin y anime sous le pseudonyme de Rockin' Robin, et y glisse des messages codés."
+  },
+  {
+    level: 1, s: 5,
+    q: "Quelle petite sœur passe au premier plan en saison 5 ?",
+    choices: ["Holly Wheeler", "Erica Sinclair", "Sara Hopper", "Max Mayfield"],
+    fact: "Holly, la benjamine des Wheeler, promue au casting principal après huit ans d'arrière-plan."
+  },
+  {
+    level: 1, s: 5,
+    q: "Sous quel nom Vecna se fait-il passer auprès de Holly ?",
+    choices: ["Monsieur Quiproquo", "Monsieur Personne", "L'Ami du grenier", "Le Marchand de sable"],
+    fact: "Un ami imaginaire — jusqu'à ce que Karen comprenne que ce « Henry » n'a rien d'imaginaire."
+  },
+  {
+    level: 1, s: 5, type: "vf",
+    q: "Argyle, le livreur de pizzas, revient en saison 5.",
+    answer: false,
+    fact: "Faux : Eduardo Franco ne reprend pas le rôle. La camionnette Surfer Boy restera au garage."
+  },
+  {
+    level: 1, s: 5,
+    q: "Combien d'épisodes compte la saison 5 ?",
+    choices: ["Huit", "Sept", "Neuf", "Dix"],
+    fact: "Huit, sortis en trois vagues : quatre, puis trois, puis la finale seule."
+  },
+
+  {
+    level: 2, s: 5,
+    q: "Qui dirige la Wolf Pack, l'unité lancée aux trousses d'Eleven ?",
+    choices: ["Le docteur Kay", "Le colonel Sullivan", "Le docteur Owens", "Le docteur Brenner"],
+    fact: "Une générale et scientifique interprétée par Linda Hamilton. Elle traque Eleven pour son sang."
+  },
+  {
+    level: 2, s: 5,
+    q: "Comment s'appelle la zone militaire bâtie autour de la faille principale ?",
+    choices: ["Le MAC-Z", "Le Starcourt", "Le secteur Creel", "La zone Weathertop"],
+    fact: "Military Access Control Zone, érigée à l'emplacement de la bibliothèque municipale. Robin l'appelle le « Big Mac » à l'antenne."
+  },
+  {
+    level: 2, s: 5,
+    q: "Quel personnage absent depuis la saison 2 réapparaît en saison 5 ?",
+    choices: ["Kali, le Sujet Huit", "Barbara Holland", "Bob Newby", "Billy Hargrove"],
+    fact: "Kali Prasad, dont le pouvoir est l'illusion et non la télékinésie. Les frères Duffer disaient attendre le bon moment."
+  },
+  {
+    level: 2, s: 5,
+    q: "Dans quel état Max se trouve-t-elle au début de la saison 5 ?",
+    choices: ["Dans le coma", "Partie de Hawkins", "Sous surveillance militaire", "Rétablie depuis longtemps"],
+    fact: "Dans le coma depuis mars 1986. Lucas lui rend visite et lui passe des cassettes."
+  },
+  {
+    level: 2, s: 5,
+    q: "Quel écrivain a inspiré le nom de la prison mentale de la saison 5 ?",
+    choices: [
+      "Madeleine L'Engle",
+      "Stephen King",
+      "Ray Bradbury",
+      "Ursula K. Le Guin"
+    ],
+    fact: "Camazotz vient d'« Un raccourci dans le temps ». C'est Holly qui lit le roman, et Holly qui donne le nom."
+  },
+  {
+    level: 2, s: 5, type: "spell",
+    q: "Épelez le nom de la prison mentale où Max est retenue.",
+    answer: "CAMAZOTZ",
+    fact: "Camazotz : une prison faite des souvenirs de Henry Creel. En maya, le mot désigne une chauve-souris de la mort."
+  },
+
+  {
+    level: 3, s: 5,
+    q: "Qui porte le coup fatal à Vecna, et avec quoi ?",
+    choices: [
+      "Joyce Byers, à la hache",
+      "Eleven, par télékinésie",
+      "Hopper, au fusil",
+      "Will, en retournant ses pouvoirs"
+    ],
+    fact: "Eleven l'empale, Joyce l'achève. Personne dans cette série n'a jamais sous-estimé Joyce Byers deux fois."
+  },
+  {
+    level: 3, s: 5,
+    q: "Que révèle la saison 5 sur la nature du Monde à l'Envers ?",
+    choices: [
+      "Ce n'est pas une dimension, mais un trou de ver",
+      "C'est un rêve collectif de Vecna",
+      "C'est le futur de Hawkins",
+      "C'est une simulation du laboratoire"
+    ],
+    fact: "Un passage vers les Abysses, la vraie dimension d'origine, maintenu ouvert par une masse de matière exotique."
+  },
+  {
+    level: 3, s: 5,
+    q: "D'où vient réellement le pouvoir de Henry Creel ?",
+    choices: [
+      "D'une pierre écarlate trouvée enfant dans une mine",
+      "D'une expérience du docteur Brenner",
+      "D'une morsure de Démogorgon",
+      "Il est né avec"
+    ],
+    fact: "Scout dans le Nevada, il ouvre la mallette d'un espion blessé et touche un fragment du Flagelleur Mental. Tout part de là."
+  },
+  {
+    level: 3, s: 5,
+    q: "Quelle date tombe au cœur du dénouement de la saison 5 ?",
+    choices: [
+      "Le 6 novembre 1987",
+      "Le 4 juillet 1987",
+      "Le 31 décembre 1987",
+      "Le 12 novembre 1987"
+    ],
+    fact: "Quatre ans jour pour jour après la disparition de Will. La série referme la boucle à la date exacte où elle l'avait ouverte."
+  },
+  {
+    level: 3, s: 5,
+    q: "Que représentent pour Vecna les douze enfants qu'il enlève ?",
+    choices: [
+      "Des « réceptacles parfaits »",
+      "Des otages de négociation",
+      "Une armée d'enfants soldats",
+      "Des cobayes pour le docteur Kay"
+    ],
+    fact: "Douze enfants mis en transe pour affaiblir les membranes entre les mondes et, selon ses mots, refaçonner le monde."
+  },
+  {
+    level: 3, s: 5,
+    q: "Quel réalisateur est sorti de sa retraite pour signer deux épisodes ?",
+    choices: ["Frank Darabont", "Shawn Levy", "John Carpenter", "Sam Raimi"],
+    fact: "Le réalisateur des Évadés signe les chapitres trois et cinq. Il remplaçait Dan Trachtenberg, retenu ailleurs."
+  },
+  {
+    level: 3, s: 5, type: "vf",
+    q: "Will Byers fait son coming out devant le groupe en saison 5.",
+    answer: true,
+    fact: "Vrai, au chapitre sept. La scène a valu à l'épisode une campagne de notes négatives coordonnée."
+  },
+  {
+    level: 3, s: 5, type: "chrono",
+    q: "Remettez ces trois moments de la saison 5 dans l'ordre.",
+    steps: [
+      "Holly disparaît de Hawkins",
+      "Max se réveille du coma",
+      "Joyce décapite Vecna"
+    ],
+    fact: "Du chapitre deux au chapitre huit. Entre les deux, il aura fallu aller chercher Max au fond de la mémoire de Henry Creel."
   },
 
   /* ================================================================
@@ -391,6 +604,47 @@ const QUESTIONS = [
     fact: "Hopper. Six lettres, une carrure, et zéro aptitude au dialogue."
   },
   {
+    level: 2, s: 3, type: "vf",
+    q: "Robin Buckley parle couramment le russe.",
+    answer: false,
+    fact: "Faux. Elle revendique quatre langues — espagnol, français, italien et le pig latin — mais pas le russe. Elle a tout décodé à l'oreille."
+  },
+  {
+    level: 2, s: 1, type: "vf",
+    q: "Eleven est la fille biologique de Jim Hopper.",
+    answer: false,
+    fact: "Faux : sa mère est Terry Ives. Hopper l'adoptera officiellement, ce qui n'enlève rien à l'affaire."
+  },
+  {
+    level: 2, s: 1, type: "intrus",
+    q: "Trois de ces personnes ont travaillé pour le laboratoire de Hawkins. Qui est l'intrus ?",
+    choices: ["Bob Newby", "Martin Brenner", "Sam Owens", "Connie Frazier"],
+    fact: "Bob vendait des postes de radio chez RadioShack. Les trois autres émargeaient au laboratoire, chacun à sa façon."
+  },
+  {
+    level: 2, s: 4, type: "intrus",
+    q: "Trois de ces lieux se trouvent à Hawkins. Lequel est l'intrus ?",
+    choices: ["Lenora Hills", "Lover's Lake", "Forest Hills", "Le Starcourt Mall"],
+    fact: "Lenora Hills est en Californie : c'est là que les Byers ont tenté de recommencer une vie normale."
+  },
+  {
+    level: 2, s: 3, type: "chrono",
+    q: "Remettez ces trois moments de la saison 3 dans l'ordre.",
+    steps: [
+      "Billy percute la créature à l'aciérie",
+      "Heather est enlevée à la piscine",
+      "Le Starcourt Mall part en flammes"
+    ],
+    fact: "Billy est écorché le premier, il enlève Heather dès le lendemain, et tout se termine dans l'incendie du 4 juillet."
+  },
+  {
+    level: 2, s: 2, type: "draw",
+    art: "velo",
+    q: "Sur quel engin le Party traverse-t-il Hawkins ?",
+    choices: ["Un vélo", "Une paire de lunettes", "Un chariot", "Une brouette"],
+    fact: "Le vélo : le seul moyen de transport du Party avant que Steve n'accepte de faire chauffeur."
+  },
+  {
     level: 2, s: 3, type: "spell",
     q: "Épelez le nom du centre commercial qui a duré un été.",
     answer: "STARCOURT",
@@ -458,7 +712,7 @@ const QUESTIONS = [
     level: 3, s: 2,
     q: "Quel est le métier de Bob Newby, héros de Hawkins ?",
     choices: ["Vendeur chez RadioShack", "Professeur de sciences", "Pompier", "Journaliste"],
-    fact: "Bob « the Brain ». Il a résolu le labyrinthe ET tenu la porte. On ne s'en remet pas."
+    fact: "Bob « the Brain », gérant du magasin. Seul à connaître le BASIC, il est descendu rétablir le courant et déverrouiller les portes. Les Demodogs l'ont rattrapé dans le hall, à deux pas de la sortie."
   },
   {
     level: 3, s: 1,
@@ -543,9 +797,14 @@ const QUESTIONS = [
   },
   {
     level: 3, s: 2,
-    q: "Comment les gamins attirent-ils les Demodogs hors des tunnels ?",
-    choices: ["Avec de la viande crue", "Avec des feux d'artifice", "Avec une radio", "Avec du sel"],
-    fact: "De la viande crue et un bidon d'essence. Le plan a fonctionné, ce qui reste une surprise."
+    q: "Comment les gamins détournent-ils les Demodogs du laboratoire ?",
+    choices: [
+      "En incendiant le nœud des tunnels à l'essence",
+      "En les appâtant avec de la viande crue",
+      "En diffusant un signal radio",
+      "En répandant du sel dans les galeries"
+    ],
+    fact: "La viande crue, essayée à la casse quelques épisodes plus tôt, avait lamentablement échoué : Dart préfère le vivant. Restait l'essence."
   },
   {
     level: 3, s: 1,
@@ -620,7 +879,7 @@ const QUESTIONS = [
     level: 3, s: 1,
     q: "Quel est le prénom de la plus jeune des Wheeler ?",
     choices: ["Holly", "Karen", "Erica", "Sara"],
-    fact: "Holly. Elle a vu les guirlandes bouger avant tout le monde, et personne ne l'a crue."
+    fact: "Holly. Elle a vu les guirlandes s'animer chez les Byers, puis une silhouette pousser le mur. Personne ne l'a crue."
   },
   {
     level: 3, s: 3,
@@ -633,6 +892,51 @@ const QUESTIONS = [
     q: "Épelez le nom de famille de Vecna, celui de sa naissance.",
     answer: "CREEL",
     fact: "Creel. Un nom de famille, une maison, et soixante ans de malentendu."
+  },
+  {
+    level: 3, s: 4, type: "vf",
+    q: "Le Monde à l'Envers est figé au jour de la disparition de Will Byers.",
+    answer: true,
+    fact: "Vrai. Nancy le découvre en ouvrant son journal intime : la page est restée au 6 novembre 1983."
+  },
+  {
+    level: 3, s: 3, type: "vf",
+    q: "Alexei a triché pour gagner sa peluche à la fête foraine.",
+    answer: false,
+    fact: "Faux, et c'est tout le sel de la scène : il a crevé tous les ballons sans en manquer un, puis a couru crier à Murray que ce n'était pas truqué."
+  },
+  {
+    level: 3, s: 3, type: "intrus",
+    q: "Trois de ces personnages sont russes. Lequel est l'intrus ?",
+    choices: ["Murray Bauman", "Alexei", "Grigori", "Dmitri"],
+    fact: "Murray est américain. Il parle russe, ce qui n'est pas tout à fait la même chose — et ce qui lui a sauvé la mise plus d'une fois."
+  },
+  {
+    level: 3, s: 1, type: "chrono",
+    q: "Remettez ces trois moments de la saison 1 dans l'ordre.",
+    steps: [
+      "Will disparaît sur la route du retour",
+      "Joyce peint l'alphabet sur le mur du salon",
+      "Les garçons remplissent une pataugeoire de sel"
+    ],
+    fact: "Du 6 au 12 novembre 1983. Six jours pendant lesquels personne n'a dormi, à commencer par Joyce."
+  },
+  {
+    level: 3, s: 4, type: "chrono",
+    q: "Remettez ces trois moments de la série dans l'ordre.",
+    steps: [
+      "Le bal du Snow Ball",
+      "L'incendie du Starcourt Mall",
+      "La première victime de Vecna"
+    ],
+    fact: "Décembre 1984, juillet 1985, mars 1986. Hawkins n'aura jamais eu plus de dix-huit mois de répit."
+  },
+  {
+    level: 3, s: 4, type: "draw",
+    art: "baladeur",
+    q: "Quel objet a arraché Max aux griffes de Vecna ?",
+    choices: ["Un baladeur à cassette", "Un magnétoscope", "Un appareil photo", "Un grille-pain"],
+    fact: "Le baladeur de Max. L'équipement de survie le plus efficace jamais opposé à Vecna."
   },
   {
     level: 3, s: 3, type: "spell",

@@ -19,23 +19,39 @@ try {
 
 const PER_LEVEL = 4;          // doit rester aligné sur app.js
 const LEVELS = [1, 2, 3];
-const SEASONS = [1, 2, 3, 4];
+const SEASONS = [1, 2, 3, 4, 5];
+const TYPES = ["qcm", "spell", "vf", "chrono", "intrus", "draw"];
 const errors = [];
 const warn = [];
 
 /* ---------- Questions ---------- */
 QUESTIONS.forEach((q, i) => {
   const at = `question ${i + 1} « ${String(q.q).slice(0, 46)}… »`;
+  const type = q.type || "qcm";
+  if (!TYPES.includes(type)) errors.push(`${at} : type inconnu (${type})`);
   if (!LEVELS.includes(q.level)) errors.push(`${at} : niveau invalide (${q.level})`);
   if (!SEASONS.includes(q.s)) errors.push(`${at} : saison invalide (${q.s})`);
   if (typeof q.q !== "string" || q.q.length < 10) errors.push(`${at} : intitulé trop court`);
-  if (typeof q.fact !== "string" || !q.fact.length) errors.push(`${at} : anecdote manquante`);
+  if (typeof q.fact !== "string" || q.fact.length < 20) errors.push(`${at} : anecdote manquante ou trop courte`);
+  if (!/[?.!»]$/.test(String(q.q).trim())) errors.push(`${at} : ponctuation finale manquante`);
 
-  if (q.type === "spell") {
+  if (type === "spell") {
     if (!/^[A-Z]{3,9}$/.test(q.answer || "")) {
       errors.push(`${at} : réponse à épeler invalide (3 à 9 lettres A-Z sans accent)`);
     }
+  } else if (type === "vf") {
+    if (typeof q.answer !== "boolean") errors.push(`${at} : vrai/faux attend answer: true ou false`);
+    if (q.choices) errors.push(`${at} : un vrai/faux ne porte pas de propositions`);
+  } else if (type === "chrono") {
+    if (!Array.isArray(q.steps) || q.steps.length !== 3) {
+      errors.push(`${at} : une chronologie attend exactement 3 étapes`);
+    } else if (new Set(q.steps).size !== 3) {
+      errors.push(`${at} : étapes en double`);
+    } else if (q.steps.some((s) => typeof s !== "string" || s.length < 5)) {
+      errors.push(`${at} : étape vide ou trop courte`);
+    }
   } else {
+    if (type === "draw" && !q.art) errors.push(`${at} : devinette sans pièce dessinée`);
     if (!Array.isArray(q.choices) || q.choices.length !== 4) {
       errors.push(`${at} : il faut exactement 4 propositions`);
     } else if (new Set(q.choices).size !== 4) {
@@ -46,7 +62,20 @@ QUESTIONS.forEach((q, i) => {
   }
 });
 
-/* Doublons d'intitulé */
+/* Les pièces dessinées référencées doivent exister. */
+const artFile = path.join(__dirname, "..", "assets", "art.js");
+if (fs.existsSync(artFile)) {
+  const artSrc = fs.readFileSync(artFile, "utf8");
+  const dispo = new Set([...artSrc.matchAll(/^\s{4}([a-z0-9]+):\s*wrap\(/gm)].map((m) => m[1]));
+  QUESTIONS.filter((q) => q.type === "draw").forEach((q, i) => {
+    if (!dispo.has(q.art)) errors.push(`devinette ${i + 1} : pièce dessinée « ${q.art} » absente de art.js`);
+  });
+} else {
+  warn.push("assets/art.js introuvable : pièces dessinées non vérifiées");
+}
+
+/* Doublons d'intitulé — strict, y compris pour les devinettes : deux questions
+   qui se lisent pareil sont indiscernables pour le joueur comme pour l'outillage. */
 const seen = new Map();
 QUESTIONS.forEach((q, i) => {
   if (seen.has(q.q)) errors.push(`doublon : questions ${seen.get(q.q) + 1} et ${i + 1} — « ${q.q.slice(0, 50)}… »`);
@@ -82,13 +111,18 @@ checkRanks(RANKS, "RANKS", PER_LEVEL * 3);
 checkRanks(SURVIVAL_RANKS, "SURVIVAL_RANKS", 40);
 
 /* ---------- Rapport ---------- */
+/* Répartition par type, pour l'affichage */
+const parType = {};
+QUESTIONS.forEach((q) => { const t = q.type || "qcm"; parType[t] = (parType[t] || 0) + 1; });
+
 const grid = {};
 QUESTIONS.forEach((q) => {
   grid[q.level] = grid[q.level] || {};
   grid[q.level][q.s] = (grid[q.level][q.s] || 0) + 1;
 });
 
-console.log(`Banque : ${QUESTIONS.length} questions, dont ${QUESTIONS.filter((q) => q.type === "spell").length} à épeler`);
+console.log(`Banque : ${QUESTIONS.length} questions`);
+console.log("  types : " + Object.entries(parType).map(([t, n]) => `${t}=${n}`).join("  "));
 LEVELS.forEach((l) => console.log(`  niveau ${l} : ${SEASONS.map((s) => `S${s}=${grid[l]?.[s] || 0}`).join("  ")}`));
 warn.forEach((w) => console.log(`! ${w}`));
 

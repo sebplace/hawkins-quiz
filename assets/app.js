@@ -63,6 +63,8 @@
     strike: $("strike"),
     qLevel: $("qLevel"), qText: $("qText"), choices: $("choices"), reveal: $("reveal"),
     spell: $("spell"), spellSlots: $("spellSlots"), wallQuiz: $("wallQuiz"), spellBack: $("spellBack"),
+    art: $("art"), chrono: $("chrono"), chronoSlots: $("chronoSlots"),
+    chronoPool: $("chronoPool"), chronoBack: $("chronoBack"),
     streak: $("streak"), stats: $("stats"), marks: $("marks"), badge: $("badge"),
     rankName: $("rankName"), rankLine: $("rankLine"), spores: $("spores"),
     initials: $("initials"), iniSlots: $("iniSlots"), iniBack: $("iniBack"), iniOk: $("iniOk"),
@@ -495,20 +497,35 @@
     [1, 2, 3].forEach((lvl) => {
       const pool = QUESTIONS.filter((q) => q.level === lvl);
       shuffleWith(rng, pool).slice(0, PER_LEVEL).forEach((q) => {
-        deck.push(q.type === "spell"
-          ? { ...q, correct: q.answer }
-          : { ...q, correct: q.choices[0], shuffled: shuffleWith(rng, q.choices) });
+        switch (q.type) {
+          case "spell": deck.push({ ...q, correct: q.answer }); break;
+          case "vf": deck.push({ ...q, correct: q.answer ? VF[0] : VF[1], shuffled: VF.slice() }); break;
+          case "chrono": deck.push({ ...q, correct: q.steps.join(" ⇢ "), shuffled: shuffleWith(rng, q.steps) }); break;
+          default: deck.push({ ...q, correct: q.choices[0], shuffled: shuffleWith(rng, q.choices) });
+        }
       });
     });
     return deck;
   }
 
-  const prep = (q) => q.type === "spell"
-    ? { ...q, correct: q.answer }
-    : { ...q, correct: q.choices[0], shuffled: shuffle(q.choices) };
+  const VF = ["Vrai", "Faux"];
+
+  /* Chaque type de question sait produire sa bonne réponse et son affichage. */
+  const prep = (q) => {
+    switch (q.type) {
+      case "spell":
+        return { ...q, correct: q.answer };
+      case "vf":
+        return { ...q, correct: q.answer ? VF[0] : VF[1], shuffled: VF.slice() };
+      case "chrono":
+        return { ...q, correct: q.steps.join(" ⇢ "), shuffled: shuffle(q.steps) };
+      default:                                   // qcm, intrus, draw
+        return { ...q, correct: q.choices[0], shuffled: shuffle(q.choices) };
+    }
+  };
 
   /* --- Saisons retenues pour le tirage --- */
-  let seasons = new Set(store.json(STORE.seasons, [1, 2, 3, 4]));
+  let seasons = new Set(store.json(STORE.seasons, [1, 2, 3, 4, 5]));
 
   function renderSeasons() {
     el.seasons.forEach((b) => {
@@ -596,12 +613,14 @@
   }
 
   function durationFor(q, i) {
-    const bonus = q && q.type === "spell" ? 8 : 0;   // épeler prend plus de temps que cliquer
+    /* Chaque format a son propre rythme : épeler ou ordonner prend du temps,
+       un vrai/faux doit rester un réflexe. */
+    const bonus = q ? ({ spell: 8, chrono: 10, draw: 4, vf: -6 }[q.type] || 0) : 0;
     if (state.mode === "survie") {
       const s = state.ud ? SURV_UD : SURV;
-      return Math.max(s.floor, s.start - i * s.step) + bonus;
+      return Math.max(4, Math.max(s.floor, s.start - i * s.step) + bonus);
     }
-    return (state.ud ? TIME_UD : TIME)[q.level] + bonus;
+    return Math.max(6, (state.ud ? TIME_UD : TIME)[q.level] + bonus);
   }
 
   function startTimer(seconds) {
@@ -659,7 +678,7 @@
     JOKERS.forEach(({ id, btn }) => {
       const b = btn();
       const used = state.used.has(id);
-      const impossible = id === "5050" && q && q.type === "spell";
+      const impossible = id === "5050" && q && ["spell", "chrono", "vf"].includes(q.type);
       b.classList.toggle("is-used", used);
       b.disabled = used || impossible || state.locked;
       b.setAttribute("aria-disabled", String(b.disabled));
@@ -707,6 +726,13 @@
       slots[spellLen - 1].textContent = target[spellLen - 1];
       slots[spellLen - 1].classList.add("is-hint");
       flash("Cerebro a capté deux lettres");
+      return;
+    }
+    if (q.type === "chrono") {
+      /* Le Club AV place le premier moment à votre place. */
+      chronoPicked = [q.steps[0]];
+      renderChrono();
+      flash("Cerebro a daté le premier moment");
       return;
     }
     /* Sondage plausible : le Club AV a souvent raison, mais pas toujours. */
@@ -773,6 +799,54 @@
     renderSpellSlots();
   }
 
+  /* --- Chronologie : on désigne les moments dans l'ordre --- */
+  let chronoActive = false;
+  let chronoPicked = [];
+
+  function renderChrono(verdict) {
+    const q = currentQuestion();
+    const attendu = q.steps;
+    el.chronoSlots.innerHTML = attendu.map((_, i) => {
+      const val = chronoPicked[i];
+      let cls = "chrono__slot";
+      if (verdict) cls += val === attendu[i] ? " is-ok" : " is-ko";
+      else if (val) cls += " is-filled";
+      else if (i === chronoPicked.length) cls += " is-next";
+      return `<li class="${cls}">${val || "…"}</li>`;
+    }).join("");
+
+    el.chronoPool.innerHTML = "";
+    q.shuffled.forEach((step) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "chrono__chip" + (chronoPicked.includes(step) ? " is-taken" : "");
+      b.textContent = step;
+      b.disabled = !chronoActive || chronoPicked.includes(step);
+      b.addEventListener("click", () => pushChrono(step));
+      el.chronoPool.appendChild(b);
+    });
+  }
+
+  function pushChrono(step) {
+    const q = currentQuestion();
+    if (!chronoActive || chronoPicked.includes(step)) return;
+    chronoPicked.push(step);
+    sfx.bulb();
+    buzz(8);
+    renderChrono();
+    if (chronoPicked.length === q.steps.length) {
+      chronoActive = false;
+      setTimeout(() => answer(chronoPicked.join(" ⇢ ")), 350);
+    }
+  }
+
+  function popChrono() {
+    if (!chronoActive || !chronoPicked.length) return;
+    chronoPicked.pop();
+    sfx.click();
+    renderChrono();
+  }
+
   function render() {
     const q = currentQuestion();
     setPhase(phaseFor(q, state.i));
@@ -792,22 +866,38 @@
     el.btnNext.hidden = true;
     el.choices.innerHTML = "";
 
-    const isSpell = q.type === "spell";
-    el.choices.hidden = isSpell;
-    el.spell.hidden = !isSpell;
-    spellActive = isSpell;
+    const kind = q.type || "qcm";
+    const useChoices = kind === "qcm" || kind === "intrus" || kind === "draw" || kind === "vf";
+    el.choices.hidden = !useChoices;
+    el.spell.hidden = kind !== "spell";
+    el.chrono.hidden = kind !== "chrono";
+    el.art.hidden = kind !== "draw";
+    el.choices.className = "choices"
+      + (kind === "vf" ? " choices--vf" : "")
+      + (kind === "intrus" ? " choices--grid" : "");
+    spellActive = kind === "spell";
     spelled = [];
+    chronoPicked = [];
 
-    if (isSpell) {
+    if (kind === "draw") {
+      el.art.innerHTML = (window.HQ_ART || {})[q.art] || "";
+    }
+
+    if (kind === "spell") {
       spellLen = q.correct.length;
       wall.clear(el.wallQuiz);
       renderSpellSlots();
+    } else if (kind === "chrono") {
+      chronoActive = true;
+      renderChrono();
     } else {
       q.shuffled.forEach((choice, idx) => {
         const b = document.createElement("button");
         b.type = "button";
         b.className = "choice";
-        b.innerHTML = `<span class="choice__key">${idx + 1}</span><span>${choice}</span>`;
+        b.innerHTML = kind === "vf"
+          ? `<span>${choice}</span>`
+          : `<span class="choice__key">${idx + 1}</span><span>${choice}</span>`;
         b.addEventListener("click", () => answer(choice));
         el.choices.appendChild(b);
       });
@@ -831,6 +921,7 @@
     if (state.locked) return;
     state.locked = true;
     spellActive = false;
+    chronoActive = false;
     state.frozen = false;
     cancelAnimationFrame(state.raf);
     renderJokers();
@@ -843,6 +934,8 @@
     if (q.type === "spell") {
       renderSpellSlots(true);
       wall.spell(el.wallQuiz, q.correct, { keep: true, on: 130, gap: 45 });
+    } else if (q.type === "chrono") {
+      renderChrono(true);
     } else {
       [...el.choices.children].forEach((b) => {
         const txt = b.lastElementChild.textContent;
@@ -1245,6 +1338,14 @@
       return;
     }
 
+    /* Chronologie : les chiffres désignent le moment à placer. */
+    if (chronoActive) {
+      if (/^[1-4]$/.test(e.key)) {
+        el.chronoPool.children[Number(e.key) - 1]?.click();
+      } else if (e.key === "Backspace") { e.preventDefault(); popChrono(); }
+      return;
+    }
+
     /* Réponses au clavier */
     if (screens.quiz.classList.contains("is-active")) {
       if (!state.locked && /^[1-4]$/.test(e.key)) {
@@ -1289,6 +1390,7 @@
   el.iniBack.addEventListener("click", popInitial);
   el.iniOk.addEventListener("click", commitInitials);
   el.spellBack.addEventListener("click", popSpell);
+  el.chronoBack.addEventListener("click", popChrono);
   el.joker5050.addEventListener("click", joker5050);
   el.jokerTime.addEventListener("click", jokerTime);
   el.jokerAv.addEventListener("click", jokerAv);
