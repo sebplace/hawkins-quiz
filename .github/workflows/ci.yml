@@ -18,6 +18,7 @@ jobs:
 
       - name: Syntaxe JavaScript
         run: |
+          node --check assets/core.js
           node --check assets/app.js
           node --check assets/questions.js
           node --check sw.js

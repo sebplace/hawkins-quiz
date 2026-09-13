@@ -7,6 +7,7 @@
 <meta name="description" content="Douze questions, trois dimensions et un Démogorgon chronométré. Testez votre maîtrise de Stranger Things. Projet de fan non officiel.">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#05060a">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self'; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
 
 <meta property="og:title" content="Hawkins Quiz — Testez votre niveau de fan">
 <meta property="og:description" content="Douze questions, trois dimensions et un Démogorgon chronométré. Survivrez-vous au Monde à l'Envers ?">
@@ -31,10 +32,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Hawkins Quiz">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Rozha+One&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/styles.css?v=6">
+<link rel="preload" href="assets/fonts/rozhaone-400-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/spacegrotesk-400-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="assets/fonts.css?v=7">
+<link rel="stylesheet" href="assets/styles.css?v=7">
 </head>
 
 <body class="phase-0">
@@ -43,6 +44,12 @@
 <div class="spores" id="spores" aria-hidden="true"></div>
 <div class="vignette" aria-hidden="true"></div>
 <div class="strike" id="strike" aria-hidden="true"></div>
+
+<div class="toast" id="toast" role="status" hidden>
+  <span id="toastText"></span>
+  <button class="toast__btn" id="toastAct" type="button"></button>
+  <button class="toast__close" id="toastNo" type="button" aria-label="Fermer">×</button>
+</div>
 
 <main id="app">
 
@@ -142,11 +149,11 @@
             </g>
             <path class="demo__torso" d="M28 22 C21 29 20 40 24 49 L32 49 C36 40 35 29 28 22 Z" />
             <g class="demo__head">
-              <path class="petal" style="--a:-18deg;--o:-92deg" d="M28 25 C21 18 21 8 28 2 C35 8 35 18 28 25 Z" />
-              <path class="petal" style="--a:-9deg;--o:-46deg"  d="M28 25 C21 18 21 8 28 2 C35 8 35 18 28 25 Z" />
-              <path class="petal" style="--a:0deg;--o:0deg"     d="M28 25 C21 18 21 8 28 2 C35 8 35 18 28 25 Z" />
-              <path class="petal" style="--a:9deg;--o:46deg"    d="M28 25 C21 18 21 8 28 2 C35 8 35 18 28 25 Z" />
-              <path class="petal" style="--a:18deg;--o:92deg"   d="M28 25 C21 18 21 8 28 2 C35 8 35 18 28 25 Z" />
+              <path class="petal petal--1" d="M28 25 C21 18 21 8 28 2 C35 8 35 18 28 25 Z" />
+              <path class="petal petal--2" d="M28 25 C21 18 21 8 28 2 C35 8 35 18 28 25 Z" />
+              <path class="petal petal--3" d="M28 25 C21 18 21 8 28 2 C35 8 35 18 28 25 Z" />
+              <path class="petal petal--4" d="M28 25 C21 18 21 8 28 2 C35 8 35 18 28 25 Z" />
+              <path class="petal petal--5" d="M28 25 C21 18 21 8 28 2 C35 8 35 18 28 25 Z" />
             </g>
           </svg>
         </div>
@@ -236,7 +243,8 @@
   <p><a href="https://github.com/sebplace/hawkins-quiz">Code source</a> · MIT</p>
 </footer>
 
-<script src="assets/questions.js?v=6"></script>
-<script src="assets/app.js?v=6"></script>
+<script src="assets/core.js?v=7"></script>
+<script src="assets/questions.js?v=7"></script>
+<script src="assets/app.js?v=7"></script>
 </body>
 </html>

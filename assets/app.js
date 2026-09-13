@@ -69,296 +69,25 @@
     board: $("board"), dayStreak: $("dayStreak"),
     jokers: $("jokers"), joker5050: $("joker5050"), jokerTime: $("jokerTime"), jokerAv: $("jokerAv"),
     btnStats: $("btnStats"), btnStatsBack: $("btnStatsBack"), btnWipe: $("btnWipe"),
-    statsBody: $("statsBody"), statsTitle: $("statsTitle")
+    statsBody: $("statsBody"), statsTitle: $("statsTitle"),
+    toast: $("toast"), toastText: $("toastText"), toastAct: $("toastAct"), toastNo: $("toastNo")
   };
   const screens = {
     intro: $("screen-intro"), quiz: $("screen-quiz"),
     result: $("screen-result"), stats: $("screen-stats")
   };
 
-  const shuffle = (arr) => {
-    const a = arr.slice();
-    for (let i = a.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [a[i], a[j]] = [a[j], a[i]];
-    }
-    return a;
-  };
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  /* Socle commun fourni par core.js : utilitaires, stockage, audio, mur, effets. */
+  const { util, store, sfx, wall, fx } = window.HQ;
+  const { sleep, reduced, shuffle, mulberry32, shuffleWith, hashString, buzz } = util;
+  const { nosebleed, rain, flash, flip, strike, celebrate, keepAwake } = fx;
 
-  /* --- Tirage reproductible : même graine, même paquet, partout --- */
-  function mulberry32(a) {
-    return function () {
-      a |= 0; a = (a + 0x6D2B79F5) | 0;
-      let t = Math.imul(a ^ (a >>> 15), 1 | a);
-      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-  }
-  const shuffleWith = (rng, arr) => {
-    const a = arr.slice();
-    for (let i = a.length - 1; i > 0; i--) {
-      const j = Math.floor(rng() * (i + 1));
-      [a[i], a[j]] = [a[j], a[i]];
-    }
-    return a;
-  };
-  const hashString = (str) => {
-    let h = 2166136261;
-    for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
-    return h >>> 0;
-  };
   function todayNumber() {
     const now = new Date();
     const utc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
     return Math.floor((utc - EPOCH) / 86400000) + 1;
   }
   const seedForDay = (n) => hashString(`hawkins-jour-${n}`);
-
-  /* Haptique réservée aux appareils tactiles : sur desktop, Chrome bloque et
-     journalise vibrate(), et il n'y a de toute façon rien à faire vibrer. */
-  const canBuzz = "vibrate" in navigator && navigator.maxTouchPoints > 0;
-  const buzz = (p) => {
-    if (!canBuzz) return;
-    if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
-    try { navigator.vibrate(p); } catch { /* ignoré */ }
-  };
-
-  const store = {
-    get(k, fallback = null) { try { return localStorage.getItem(k) ?? fallback; } catch { return fallback; } },
-    set(k, v) { try { localStorage.setItem(k, v); } catch { /* navigation privée */ } },
-    json(k, fallback) { try { return JSON.parse(store.get(k)) ?? fallback; } catch { return fallback; } }
-  };
-
-  /* ==================================================================
-     2. Mur d'alphabet — décor, clavier secret et borne d'arcade
-  ================================================================== */
-  const ROWS = [
-    { letters: "ABCDEFGH".split(""), reverse: false },
-    { letters: "IJKLMNOPQ".split(""), reverse: true },
-    { letters: "RSTUVWXYZ".split(""), reverse: false }
-  ];
-
-  function buildWall(node, onLetter) {
-    if (!node) return;
-    node.innerHTML = "";
-    if (!onLetter) node.classList.add("wall--static");
-    let i = 0;
-    ROWS.forEach((row) => {
-      const r = document.createElement("div");
-      r.className = "wall__row";
-      const letters = row.reverse ? row.letters.slice().reverse() : row.letters;
-      letters.forEach((L) => {
-        const cell = document.createElement("button");
-        cell.type = "button";
-        cell.className = "wall__cell";
-        cell.dataset.letter = L;
-        cell.tabIndex = -1;                 // le mur est aria-hidden : on le garde hors du focus
-        cell.style.setProperty("--c", BULB_COLORS[i++ % BULB_COLORS.length]);
-        cell.innerHTML = `<div class="wall__bulb"></div><div class="wall__letter">${L}</div>`;
-        if (onLetter) cell.addEventListener("click", () => onLetter(L, cell));
-        r.appendChild(cell);
-      });
-      node.appendChild(r);
-    });
-  }
-
-  let wallToken = 0;
-  async function spell(node, word, opts = {}) {
-    if (!node) return;
-    const token = ++wallToken;
-    const on = opts.on ?? 460;
-    const gap = opts.gap ?? 130;
-    clearWall(node);
-    for (const ch of word.toUpperCase()) {
-      if (token !== wallToken) return;
-      const cell = node.querySelector(`.wall__cell[data-letter="${ch}"]`);
-      if (!cell) { await sleep(gap * 2); continue; }
-      cell.classList.add("on");
-      sfx.bulb();
-      await sleep(on);
-      if (token !== wallToken) return;
-      if (!opts.keep) cell.classList.remove("on");
-      await sleep(gap);
-    }
-    if (opts.keep && token === wallToken) {
-      for (const ch of word.toUpperCase()) {
-        node.querySelector(`.wall__cell[data-letter="${ch}"]`)?.classList.add("on");
-      }
-    }
-  }
-
-  const clearWall = (node) =>
-    node?.querySelectorAll(".wall__cell.on").forEach((c) => c.classList.remove("on"));
-
-  /* Scintillement d'ambiance tant que personne ne parle au mur */
-  let twinkleOn = false;
-  function idleTwinkle(node) {
-    if (!node || reduced) return;
-    setInterval(() => {
-      if (!twinkleOn || wallToken !== idleTwinkle.token) return;
-      const cells = node.querySelectorAll(".wall__cell");
-      const c = cells[Math.floor(Math.random() * cells.length)];
-      if (!c || c.classList.contains("on")) return;
-      c.classList.add("on");
-      setTimeout(() => c.classList.remove("on"), 180);
-    }, 900);
-  }
-
-  /* ==================================================================
-     3. Sons synthétisés (Web Audio) — rien de copyrighté, que des sinus
-  ================================================================== */
-  const sfx = (() => {
-    let ctx = null, on = false;
-    const ac = () => (ctx ||= new (window.AudioContext || window.webkitAudioContext)());
-
-    function tone(freq, dur, type = "triangle", vol = .14, delay = 0) {
-      if (!on) return;
-      const c = ac();
-      const t = c.currentTime + delay;
-      const osc = c.createOscillator();
-      const g = c.createGain();
-      osc.type = type;
-      osc.frequency.setValueAtTime(freq, t);
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(vol, t + .012);
-      g.gain.exponentialRampToValueAtTime(.0001, t + dur);
-      osc.connect(g).connect(c.destination);
-      osc.start(t); osc.stop(t + dur + .02);
-    }
-
-    function sweep(from, to, dur, type = "sawtooth", vol = .12) {
-      if (!on) return;
-      const c = ac();
-      const t = c.currentTime;
-      const osc = c.createOscillator();
-      const g = c.createGain();
-      osc.type = type;
-      osc.frequency.setValueAtTime(from, t);
-      osc.frequency.exponentialRampToValueAtTime(to, t + dur);
-      g.gain.setValueAtTime(vol, t);
-      g.gain.exponentialRampToValueAtTime(.0001, t + dur);
-      osc.connect(g).connect(c.destination);
-      osc.start(t); osc.stop(t + dur + .02);
-    }
-
-    return {
-      toggle() { on = !on; if (on) { ac().resume?.(); tone(660, .12); } return on; },
-      bulb() { tone(880 + Math.random() * 260, .07, "sine", .05); },
-      click() { tone(420, .05, "square", .05); },
-      correct() { [523, 659, 784, 1047].forEach((f, i) => tone(f, .22, "triangle", .12, i * .07)); },
-      wrong() { tone(180, .5, "sawtooth", .1); tone(120, .55, "sawtooth", .1, .04); },
-      tick() { tone(1200, .04, "square", .04); },
-      gate() { [330, 262, 196, 147, 110].forEach((f, i) => tone(f, .8, "sine", .1, i * .13)); },
-      win() { [523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, .5, "triangle", .12, i * .12)); },
-      unlock() { [196, 294, 392, 523, 784].forEach((f, i) => tone(f, .9, "sine", .11, i * .1)); },
-      pounce() { sweep(420, 48, .55); tone(70, .7, "square", .13); },
-      carve() { [392, 523, 659].forEach((f, i) => tone(f, .3, "square", .1, i * .09)); },
-      chime(i = 0) {
-        tone(110, 2.2, "sine", .16, i * .95);
-        tone(220.5, 1.8, "sine", .08, i * .95);
-        tone(330, 1.2, "triangle", .05, i * .95);
-      }
-    };
-  })();
-
-  /* ==================================================================
-     4. Ambiance : spores et effets ponctuels
-  ================================================================== */
-  function buildSpores(n = 26) {
-    const frag = document.createDocumentFragment();
-    for (let i = 0; i < n; i++) {
-      const s = document.createElement("div");
-      s.className = "spore";
-      const size = 2 + Math.random() * 5;
-      s.style.width = s.style.height = `${size}px`;
-      s.style.left = `${Math.random() * 100}%`;
-      s.style.animationDuration = `${9 + Math.random() * 14}s`;
-      s.style.animationDelay = `${-Math.random() * 20}s`;
-      frag.appendChild(s);
-    }
-    el.spores.appendChild(frag);
-  }
-
-  function nosebleed() {
-    if (reduced) return;
-    for (let i = 0; i < 3; i++) {
-      const d = document.createElement("div");
-      d.className = "drop";
-      d.style.left = `${20 + Math.random() * 60}%`;
-      d.style.animationDelay = `${i * .18}s`;
-      document.body.appendChild(d);
-      setTimeout(() => d.remove(), 2200);
-    }
-  }
-
-  function rain(glyph, n = 26) {
-    for (let i = 0; i < n; i++) {
-      const w = document.createElement("div");
-      w.textContent = glyph;
-      w.style.cssText = `position:fixed;z-index:7;pointer-events:none;top:-40px;font-size:${
-        16 + Math.random() * 22}px;left:${Math.random() * 100}%;animation:fall ${
-        2 + Math.random() * 2.5}s linear ${Math.random()}s forwards`;
-      document.body.appendChild(w);
-      setTimeout(() => w.remove(), 6500);
-    }
-  }
-
-  let flashTimer;
-  function flash(msg) {
-    el.streak.textContent = msg;
-    el.streak.classList.remove("is-on");
-    void el.streak.offsetWidth;
-    el.streak.classList.add("is-on");
-    clearTimeout(flashTimer);
-    flashTimer = setTimeout(() => el.streak.classList.remove("is-on"), 2000);
-  }
-
-  function flip(ms = 2800) {
-    body.classList.add("flipped");
-    setTimeout(() => body.classList.remove("flipped"), ms);
-  }
-
-  function strike() {
-    if (reduced) return;
-    el.strike.classList.remove("is-on");
-    void el.strike.offsetWidth;
-    el.strike.classList.add("is-on");
-  }
-
-  /* Gerbe de gaufres pour un sans-faute : elles partent du centre. */
-  function celebrate(glyph) {
-    strike();
-    if (reduced) return;
-    for (let i = 0; i < 36; i++) {
-      const p = document.createElement("div");
-      p.textContent = glyph;
-      const angle = (Math.PI * 2 * i) / 36 + Math.random() * .3;
-      const dist = 150 + Math.random() * 340;
-      p.style.cssText = `position:fixed;left:50%;top:46%;z-index:8;pointer-events:none;
-        font-size:${14 + Math.random() * 20}px;
-        --dx:${Math.cos(angle) * dist}px; --dy:${Math.sin(angle) * dist}px;
-        animation:burst ${1.1 + Math.random() * .9}s cubic-bezier(.15,.7,.3,1) ${Math.random() * .25}s forwards`;
-      document.body.appendChild(p);
-      setTimeout(() => p.remove(), 2600);
-    }
-  }
-
-  /* L'écran ne doit pas s'éteindre pendant une partie chronométrée. */
-  let wakeLock = null;
-  async function keepAwake(on) {
-    try {
-      if (on) {
-        if (!("wakeLock" in navigator) || wakeLock) return;
-        wakeLock = await navigator.wakeLock.request("screen");
-        wakeLock.addEventListener("release", () => { wakeLock = null; });
-      } else if (wakeLock) {
-        await wakeLock.release();
-        wakeLock = null;
-      }
-    } catch { wakeLock = null; }
-  }
 
   /* ==================================================================
      5. Secrets du mur
@@ -417,7 +146,7 @@
   let composeTimer;
 
   function tapLetter(L, cell) {
-    twinkleOn = false;
+    wall.setTwinkle(false);
     if (cell) {
       cell.classList.add("on");
       setTimeout(() => cell.classList.remove("on"), 650);
@@ -439,7 +168,7 @@
     composing = [];
     el.wallCaption.classList.remove("is-composing");
     el.wallCaption.textContent = "À vous de répondre.";
-    twinkleOn = true;
+    wall.setTwinkle(true);
   }
 
   function checkSecret() {
@@ -455,9 +184,8 @@
     el.wallCaption.classList.remove("is-composing");
     el.wallCaption.textContent = hit.say;
     if (screens.intro.classList.contains("is-active")) {
-      spell(el.wall, hit.word, { on: 200, gap: 60 }).then(() => {
-        twinkleOn = true;
-        idleTwinkle.token = wallToken;
+      wall.spell(el.wall, hit.word, { on: 200, gap: 60 }).then(() => {
+        wall.twinkle(el.wall);
       });
     }
     hit.run();
@@ -541,7 +269,7 @@
     iniActive = true;
     ini = [];
     el.initials.hidden = false;
-    clearWall(el.wallResult);
+    wall.clear(el.wallResult);
     renderIniSlots();
   }
 
@@ -571,7 +299,7 @@
     buzz([14, 50, 14]);
     renderBoard(state.mode, state.ud, rank);
     renderRecord();
-    spell(el.wallResult, lastRank.wall, { keep: true, on: 240, gap: 70 });
+    wall.spell(el.wallResult, lastRank.wall, { keep: true, on: 240, gap: 70 });
   }
 
   /* ==================================================================
@@ -1072,7 +800,7 @@
 
     if (isSpell) {
       spellLen = q.correct.length;
-      clearWall(el.wallQuiz);
+      wall.clear(el.wallQuiz);
       renderSpellSlots();
     } else {
       q.shuffled.forEach((choice, idx) => {
@@ -1114,7 +842,7 @@
 
     if (q.type === "spell") {
       renderSpellSlots(true);
-      spell(el.wallQuiz, q.correct, { keep: true, on: 130, gap: 45 });
+      wall.spell(el.wallQuiz, q.correct, { keep: true, on: 130, gap: 45 });
     } else {
       [...el.choices.children].forEach((b) => {
         const txt = b.lastElementChild.textContent;
@@ -1257,7 +985,7 @@
     renderBoard(state.mode, state.ud, -1);
 
     await sleep(400);
-    await spell(el.wallResult, rank.wall, { keep: true, on: 420, gap: 110 });
+    await wall.spell(el.wallResult, rank.wall, { keep: true, on: 420, gap: 110 });
 
     if (qualified) { await sleep(500); openInitials(); }
   }
@@ -1305,8 +1033,8 @@
     });
     el.score.textContent = "0";
     el.scoreIcon.textContent = udOn ? "🩸" : "🧇";
-    twinkleOn = false;
-    wallToken++;
+    wall.setTwinkle(false);
+    wall.bump();
     keepAwake(true);
     show("quiz");
     render();
@@ -1594,12 +1322,60 @@
   });
 
   /* ==================================================================
-     12. Initialisation
+     13. Coquille applicative : mise à jour et installation
   ================================================================== */
-  buildWall(el.wall, tapLetter);
-  buildWall(el.wallResult, (L, cell) => pushInitial(L, cell));
-  buildWall(el.wallQuiz, (L, cell) => pushSpell(L, cell));
-  buildSpores();
+  let toastAction = null;
+
+  function toast(text, label, action) {
+    el.toastText.textContent = text;
+    el.toastAct.textContent = label;
+    toastAction = action;
+    el.toast.hidden = false;
+  }
+  const hideToast = () => { el.toast.hidden = true; toastAction = null; };
+
+  el.toastAct.addEventListener("click", () => { const a = toastAction; hideToast(); a?.(); });
+  el.toastNo.addEventListener("click", hideToast);
+
+  /* Une nouvelle version est prête : on propose, on n'impose pas. */
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", async () => {
+      try {
+        const reg = await navigator.serviceWorker.register("sw.js");
+        reg.addEventListener("updatefound", () => {
+          const sw = reg.installing;
+          if (!sw || !navigator.serviceWorker.controller) return;   // première installation
+          sw.addEventListener("statechange", () => {
+            if (sw.state === "installed") {
+              toast("Une nouvelle version est prête.", "Recharger", () => location.reload());
+            }
+          });
+        });
+      } catch { /* pas de service worker, pas de drame */ }
+    });
+  }
+
+  /* Installation sur l'écran d'accueil, proposée une seule fois. */
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    if (store.get("hq.installAsked") === "1") return;
+    setTimeout(() => {
+      toast("Installer le quiz sur votre écran d'accueil ?", "Installer", async () => {
+        store.set("hq.installAsked", "1");
+        e.prompt();
+        try { await e.userChoice; } catch { /* refusé */ }
+      });
+    }, 4000);
+  });
+  el.toastNo.addEventListener("click", () => store.set("hq.installAsked", "1"));
+
+  /* ==================================================================
+     14. Initialisation
+  ================================================================== */
+  wall.build(el.wall, tapLetter);
+  wall.build(el.wallResult, (L, cell) => pushInitial(L, cell));
+  wall.build(el.wallQuiz, (L, cell) => pushSpell(L, cell));
+  fx.spores();
   body.classList.remove("phase-0");
   body.classList.add("phase-1");
 
@@ -1615,20 +1391,13 @@
   setInterval(refreshDay, 60000);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshDay(); });
 
-  /* Service worker : l'app reste jouable hors ligne. */
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => { /* pas grave */ }));
-  }
-
   (async () => {
     await sleep(700);
-    await spell(el.wall, "HAWKINS", { on: 330, gap: 90 });
+    await wall.spell(el.wall, "HAWKINS", { on: 330, gap: 90 });
     el.wallCaption.textContent = "Ne rentrez pas seul.";
     await sleep(600);
-    await spell(el.wall, "RUN", { on: 380, gap: 120 });
+    await wall.spell(el.wall, "RUN", { on: 380, gap: 120 });
     if (!composing.length) el.wallCaption.textContent = "À vous de répondre.";
-    twinkleOn = true;
-    idleTwinkle.token = wallToken;
-    idleTwinkle(el.wall);
+    wall.twinkle(el.wall);
   })();
 })();

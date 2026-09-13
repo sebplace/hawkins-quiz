@@ -73,25 +73,37 @@ réponses sur deux colonnes pour tenir dans 390 px de haut.
 
 ## Technique
 
-Zéro dépendance, zéro build, zéro tracker. Des fichiers statiques :
+Zéro dépendance, zéro build, zéro tracker, **zéro requête vers un tiers**. Des
+fichiers statiques :
 
 ```
 index.html
+404.html          ← page disparue, avec ses cinq ampoules
 manifest.webmanifest
 sw.js             ← service worker : HTML par le réseau, assets par le cache
+robots.txt  sitemap.xml
 assets/
+  fonts.css       ← @font-face des polices auto-hébergées
+  fonts/          ← woff2 latin et latin-ext, sous licence SIL OFL 1.1
   styles.css      ← thèmes par phase, mode Monde à l'Envers, mur, animations
-  app.js          ← moteur, Web Audio, secrets, défi du jour, carte canvas
+  core.js         ← socle : utilitaires, stockage, audio, mur, effets (window.HQ)
+  app.js          ← moteur, écrans, jokers, défi du jour, statistiques, carte
   questions.js    ← banque de questions + rangs
-  icon-*.png      ← icônes PWA, générées depuis un SVG dessiné à la main
+  icon-*.png og.png
+tools/
+  check-questions.js  ← validateur de la banque
+  og-template.html    ← gabarit ayant servi à produire assets/og.png
 ```
+
+Une **CSP stricte** est déclarée en `<meta>` : tout est en `'self'`, sans
+`unsafe-inline` — d'où les angles des pétales du Démogorgon en classes plutôt
+qu'en attributs `style`.
 
 Les URL des assets portent un `?v=N` incrémenté à chaque livraison. Comme le
 service worker sert le HTML par le réseau en priorité, une nouvelle version du
 HTML demande automatiquement de nouvelles URL : personne ne reste bloqué sur un
-mélange d'ancien JS et de nouveau HTML.
-
-L'ensemble pèse moins de 150 Ko hors polices.
+mélange d'ancien JS et de nouveau HTML. Quand une mise à jour est prête, un
+bandeau la propose au lieu de l'imposer.
 
 **Lancer en local :**
 
