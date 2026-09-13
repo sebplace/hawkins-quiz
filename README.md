@@ -19,6 +19,9 @@ et se remplir de spores.
 | **Chrono Démogorgon** | Pas une barre de progression : une créature dessinée en SVG qui traverse l'écran vers vous et ouvre sa fleur quand il ne reste presque plus rien. |
 | **Deux modes** | *Enquête* (12 questions, 3 dimensions) et *Survie* (jusqu'à la première erreur, chrono qui ne remonte jamais). |
 | **Tableau d'honneur** | Top 10 local par mode, initiales gravées en tapant trois lettres sur le mur. Comme au Palace Arcade. |
+| **Jokers** | Trois, un usage chacun&nbsp;: la *batte de Steve* écarte deux réponses, le *walkman de Max* gèle le Démogorgon, *Radio Cerebro* fait voter le Club AV. Désactivés en Défi du jour, pour que la compétition reste franche. |
+| **Série de jours** | Le Défi du jour compte les jours consécutifs. Un jour sauté, et la série tombe. |
+| **Statistiques** | Histogramme des scores, taux de réussite, meilleure série, et une galerie des 15 rangs à débloquer. |
 | **Défi du jour** | Les mêmes 12 questions pour tout le monde, tirées par la date. Une seule tentative, numéro de partie dans le partage. |
 | **Lien de défi** | Chaque défi porte une graine dans son URL&nbsp;: envoyez-la, votre adversaire joue exactement le même paquet. |
 | **Carte de score** | Une image PNG 1080 × 1350 dessinée au canvas, prête pour une story. Tout est tracé à la main, aucun émoji requis. |

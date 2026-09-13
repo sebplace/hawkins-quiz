@@ -34,7 +34,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Rozha+One&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/styles.css?v=5">
+<link rel="stylesheet" href="assets/styles.css?v=6">
 </head>
 
 <body class="phase-0">
@@ -79,6 +79,7 @@
     </div>
 
     <p class="record" id="record" hidden></p>
+    <p class="daystreak" id="dayStreak" hidden></p>
 
     <div class="seasons" role="group" aria-label="Saisons incluses dans le tirage">
       <span class="seasons__label">Saisons</span>
@@ -95,6 +96,7 @@
       <button class="btn btn--ghost" id="btnSound" type="button" aria-pressed="false">
         <span id="soundLabel">Son : coupé</span>
       </button>
+      <button class="btn btn--ghost" id="btnStats" type="button">Statistiques</button>
     </div>
 
     <ul class="rules">
@@ -167,6 +169,21 @@
       </div>
 
       <div class="reveal" id="reveal" aria-live="polite"></div>
+
+      <div class="jokers" id="jokers" role="group" aria-label="Jokers, un seul usage chacun">
+        <button class="joker" id="joker5050" type="button">
+          <span class="joker__ico">½</span>
+          <span class="joker__lbl">Batte de Steve<i>Deux réponses en moins</i></span>
+        </button>
+        <button class="joker" id="jokerTime" type="button">
+          <span class="joker__ico">‖</span>
+          <span class="joker__lbl">Walkman de Max<i>Le chrono s'arrête</i></span>
+        </button>
+        <button class="joker" id="jokerAv" type="button">
+          <span class="joker__ico">AV</span>
+          <span class="joker__lbl">Radio Cerebro<i>L'avis du Club AV</i></span>
+        </button>
+      </div>
     </article>
 
     <button class="btn btn--primary btn--next" id="btnNext" type="button" hidden>Suivant</button>
@@ -201,6 +218,16 @@
       <button class="btn btn--ghost" id="btnCard" type="button">Carte à partager</button>
     </div>
   </section>
+  <!-- ============ STATISTIQUES ============ -->
+  <section class="screen" id="screen-stats" aria-labelledby="statsTitle">
+    <p class="result__kicker">Dossier personnel</p>
+    <h2 class="stats__title" id="statsTitle" tabindex="-1">Vos statistiques</h2>
+    <div id="statsBody"></div>
+    <div class="result__actions">
+      <button class="btn btn--primary" id="btnStatsBack" type="button">Retour</button>
+      <button class="btn btn--ghost" id="btnWipe" type="button">Effacer mes données</button>
+    </div>
+  </section>
 
 </main>
 
@@ -209,7 +236,7 @@
   <p><a href="https://github.com/sebplace/hawkins-quiz">Code source</a> · MIT</p>
 </footer>
 
-<script src="assets/questions.js?v=5"></script>
-<script src="assets/app.js?v=5"></script>
+<script src="assets/questions.js?v=6"></script>
+<script src="assets/app.js?v=6"></script>
 </body>
 </html>

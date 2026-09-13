@@ -35,6 +35,7 @@
   const BULB_COLORS = ["#ff2f45", "#ffc13b", "#3ddc84", "#3aa8ff", "#b14cff", "#ff7a2f"];
   const STORE = {
     ud: "hq.ud", udOn: "hq.udOn", secrets: "hq.secrets", seen: "hq.seen", seasons: "hq.seasons",
+    stats: "hq.stats", streak: "hq.streak", ranks: "hq.ranks",
     done: (seed) => `hq.done.${seed.toString(36)}`,
     board: (mode) => `hq.board.${mode}`
   };
@@ -65,9 +66,15 @@
     streak: $("streak"), stats: $("stats"), marks: $("marks"), badge: $("badge"),
     rankName: $("rankName"), rankLine: $("rankLine"), spores: $("spores"),
     initials: $("initials"), iniSlots: $("iniSlots"), iniBack: $("iniBack"), iniOk: $("iniOk"),
-    board: $("board")
+    board: $("board"), dayStreak: $("dayStreak"),
+    jokers: $("jokers"), joker5050: $("joker5050"), jokerTime: $("jokerTime"), jokerAv: $("jokerAv"),
+    btnStats: $("btnStats"), btnStatsBack: $("btnStatsBack"), btnWipe: $("btnWipe"),
+    statsBody: $("statsBody"), statsTitle: $("statsTitle")
   };
-  const screens = { intro: $("screen-intro"), quiz: $("screen-quiz"), result: $("screen-result") };
+  const screens = {
+    intro: $("screen-intro"), quiz: $("screen-quiz"),
+    result: $("screen-result"), stats: $("screen-stats")
+  };
 
   const shuffle = (arr) => {
     const a = arr.slice();
@@ -320,6 +327,39 @@
     el.strike.classList.add("is-on");
   }
 
+  /* Gerbe de gaufres pour un sans-faute : elles partent du centre. */
+  function celebrate(glyph) {
+    strike();
+    if (reduced) return;
+    for (let i = 0; i < 36; i++) {
+      const p = document.createElement("div");
+      p.textContent = glyph;
+      const angle = (Math.PI * 2 * i) / 36 + Math.random() * .3;
+      const dist = 150 + Math.random() * 340;
+      p.style.cssText = `position:fixed;left:50%;top:46%;z-index:8;pointer-events:none;
+        font-size:${14 + Math.random() * 20}px;
+        --dx:${Math.cos(angle) * dist}px; --dy:${Math.sin(angle) * dist}px;
+        animation:burst ${1.1 + Math.random() * .9}s cubic-bezier(.15,.7,.3,1) ${Math.random() * .25}s forwards`;
+      document.body.appendChild(p);
+      setTimeout(() => p.remove(), 2600);
+    }
+  }
+
+  /* L'écran ne doit pas s'éteindre pendant une partie chronométrée. */
+  let wakeLock = null;
+  async function keepAwake(on) {
+    try {
+      if (on) {
+        if (!("wakeLock" in navigator) || wakeLock) return;
+        wakeLock = await navigator.wakeLock.request("screen");
+        wakeLock.addEventListener("release", () => { wakeLock = null; });
+      } else if (wakeLock) {
+        await wakeLock.release();
+        wakeLock = null;
+      }
+    } catch { wakeLock = null; }
+  }
+
   /* ==================================================================
      5. Secrets du mur
   ================================================================== */
@@ -535,6 +575,127 @@
   }
 
   /* ==================================================================
+     6 bis. Statistiques, série de jours et galerie des rangs
+  ================================================================== */
+  const BLANK_STATS = { played: 0, dist: {}, perfect: 0, timeouts: 0, correct: 0, asked: 0, surv: 0, survBest: 0, defi: 0 };
+  const getStats = () => Object.assign({}, BLANK_STATS, store.json(STORE.stats, {}));
+  const getRanks = () => new Set(store.json(STORE.ranks, []));
+
+  function recordGame(rank) {
+    const s = getStats();
+    s.correct += state.score;
+    s.asked += state.marks.length;
+    s.timeouts += state.timeouts;
+    if (state.mode === "survie") {
+      s.surv++;
+      s.survBest = Math.max(s.survBest, state.score);
+    } else {
+      s.played++;
+      s.dist[state.score] = (s.dist[state.score] || 0) + 1;
+      if (state.score === TOTAL) s.perfect++;
+      if (state.mode === "defi") s.defi++;
+    }
+    store.set(STORE.stats, JSON.stringify(s));
+
+    const got = getRanks();
+    got.add(rank.name);
+    store.set(STORE.ranks, JSON.stringify([...got]));
+  }
+
+  /* Série de jours : seul le vrai défi du jour la fait vivre. */
+  function bumpStreak() {
+    const rec = store.json(STORE.streak, { n: 0, last: -99 });
+    if (rec.last === dayN) return rec;
+    rec.n = rec.last === dayN - 1 ? rec.n + 1 : 1;
+    rec.last = dayN;
+    rec.best = Math.max(rec.best || 0, rec.n);
+    store.set(STORE.streak, JSON.stringify(rec));
+    return rec;
+  }
+
+  function currentStreak() {
+    const rec = store.json(STORE.streak, null);
+    if (!rec) return null;
+    /* Une série se rompt dès qu'un jour est sauté. */
+    return rec.last === dayN || rec.last === dayN - 1 ? rec : { n: 0, best: rec.best || 0, last: rec.last };
+  }
+
+  function renderStreak() {
+    const rec = currentStreak();
+    if (!rec || !rec.n) { el.dayStreak.hidden = true; return; }
+    el.dayStreak.hidden = false;
+    el.dayStreak.textContent = rec.n === 1
+      ? "Série de défis : 1 jour"
+      : `Série de défis : ${rec.n} jours d'affilée`;
+  }
+
+  function renderStats() {
+    const s = getStats();
+    const got = getRanks();
+    const streak = currentStreak();
+    const total = s.played + s.surv;
+
+    if (!total) {
+      el.statsBody.innerHTML = `<p class="empty">Aucune partie terminée pour l'instant.<br>
+        Le dossier se remplira tout seul.</p>`;
+      return;
+    }
+
+    const scores = Object.keys(s.dist).map(Number);
+    const maxCount = Math.max(1, ...scores.map((k) => s.dist[k]));
+    const bestScore = scores.length ? Math.max(...scores) : 0;
+    const hist = Array.from({ length: TOTAL + 1 }, (_, i) => {
+      const n = s.dist[i] || 0;
+      const w = n ? Math.max(10, Math.round((n / maxCount) * 100)) : 0;
+      return `<div class="hist__row">
+        <span class="hist__n">${i}</span>
+        <div class="hist__bar${n ? (i === bestScore ? " is-top" : "") : " is-empty"}" style="width:${n ? w : 4}%">${n || ""}</div>
+      </div>`;
+    }).join("");
+
+    const pct = s.asked ? Math.round((s.correct / s.asked) * 100) : 0;
+    const allRanks = [...RANKS.map((r) => r.name), "Le Démogorgon", ...SURVIVAL_RANKS.map((r) => r.name)];
+    const gallery = [...new Set(allRanks)].map((n) => `
+      <div class="rankchip${got.has(n) ? " is-got" : ""}"><b>${got.has(n) ? n : "? ? ?"}</b>${got.has(n) ? "" : "à débloquer"}</div>`).join("");
+
+    el.statsBody.innerHTML = `
+      <div class="sblock">
+        <p class="sblock__title">En chiffres</p>
+        <div class="stats">
+          <div class="stat"><b>${total}</b><span>Parties</span></div>
+          <div class="stat"><b>${pct}%</b><span>Bonnes réponses</span></div>
+          <div class="stat"><b>${s.perfect}</b><span>Sans-faute</span></div>
+          <div class="stat"><b>${s.survBest}</b><span>Record Survie</span></div>
+        </div>
+      </div>
+      ${s.played ? `<div class="sblock">
+        <p class="sblock__title">Répartition des scores — ${s.played} partie${s.played > 1 ? "s" : ""}</p>
+        <div class="hist">${hist}</div>
+      </div>` : ""}
+      <div class="sblock">
+        <p class="sblock__title">Défi du jour</p>
+        <div class="stats">
+          <div class="stat"><b>${s.defi}</b><span>Défis relevés</span></div>
+          <div class="stat"><b>${streak ? streak.n : 0}</b><span>Série en cours</span></div>
+          <div class="stat"><b>${streak ? (streak.best || streak.n) : 0}</b><span>Meilleure série</span></div>
+          <div class="stat"><b>${s.timeouts}</b><span>Rattrapé·e</span></div>
+        </div>
+      </div>
+      <div class="sblock">
+        <p class="sblock__title">Galerie des rangs — ${got.size} / ${new Set(allRanks).size}</p>
+        <div class="gallery">${gallery}</div>
+      </div>`;
+  }
+
+  function wipeData() {
+    if (!window.confirm("Effacer scores, statistiques, secrets et défis enregistrés sur cet appareil ? C'est définitif.")) return;
+    try {
+      Object.keys(localStorage).filter((k) => k.startsWith("hq.")).forEach((k) => localStorage.removeItem(k));
+    } catch { /* ignoré */ }
+    location.reload();
+  }
+
+  /* ==================================================================
      7. Moteur de quiz
   ================================================================== */
   let mode = "enquete";
@@ -542,6 +703,7 @@
   const state = {
     mode: "enquete", deck: [], i: 0, score: 0, streak: 0, best: 0,
     timeouts: 0, times: [], marks: [], locked: true, ud: false, over: false,
+    used: new Set(), frozen: false, frozenLeft: 0,
     phase: 0, raf: 0, deadline: 0, duration: 0, lastTick: -1, close: false
   };
 
@@ -720,10 +882,17 @@
     state.deadline = performance.now() + state.duration;
     state.lastTick = -1;
     state.close = false;
-    el.hunt.classList.remove("is-close", "is-caught");
+    state.frozen = false;
+    el.hunt.classList.remove("is-close", "is-caught", "is-frozen");
     el.demo.style.setProperty("--p", "0");
 
     const loop = (now) => {
+      if (state.frozen) {
+        /* Le walkman gèle la traque : on repousse l'échéance au même rythme. */
+        state.deadline = now + state.frozenLeft;
+        state.raf = requestAnimationFrame(loop);
+        return;
+      }
       const left = Math.max(0, state.deadline - now);
       const ratio = left / state.duration;
       el.huntFill.style.transform = `scaleX(${ratio})`;
@@ -744,6 +913,100 @@
     };
     state.raf = requestAnimationFrame(loop);
   }
+
+  /* ==================================================================
+     7 bis. Jokers — un seul usage chacun, interdits en mode Défi
+  ================================================================== */
+  const JOKERS = [
+    { id: "5050", btn: () => el.joker5050 },
+    { id: "time", btn: () => el.jokerTime },
+    { id: "av", btn: () => el.jokerAv }
+  ];
+
+  function renderJokers() {
+    const hidden = state.mode === "defi";
+    el.jokers.hidden = hidden;
+    if (hidden) return;
+    const q = state.deck.length ? currentQuestion() : null;
+    JOKERS.forEach(({ id, btn }) => {
+      const b = btn();
+      const used = state.used.has(id);
+      const impossible = id === "5050" && q && q.type === "spell";
+      b.classList.toggle("is-used", used);
+      b.disabled = used || impossible || state.locked;
+      b.setAttribute("aria-disabled", String(b.disabled));
+    });
+  }
+
+  function useJoker(id, run) {
+    if (state.locked || state.used.has(id) || state.mode === "defi") return;
+    state.used.add(id);
+    sfx.unlock();
+    buzz([10, 40, 10]);
+    run();
+    renderJokers();
+  }
+
+  const joker5050 = () => useJoker("5050", () => {
+    const q = currentQuestion();
+    if (q.type === "spell") return;
+    const wrong = [...el.choices.children].filter((b) => b.lastElementChild.textContent !== q.correct);
+    shuffle(wrong).slice(0, 2).forEach((b) => {
+      b.classList.add("is-faded");
+      b.disabled = true;
+    });
+    flash("Deux réponses écartées");
+  });
+
+  const jokerTime = () => useJoker("time", () => {
+    state.frozenLeft = Math.max(0, state.deadline - performance.now());
+    state.frozen = true;
+    el.hunt.classList.add("is-frozen");
+    el.hunt.classList.remove("is-close");
+    flash("Le walkman tient le monstre à distance");
+  });
+
+  const jokerAv = () => useJoker("av", () => {
+    const q = currentQuestion();
+    if (q.type === "spell") {
+      /* Le Club AV souffle la première et la dernière lettre. */
+      const target = q.correct;
+      spelled = [];
+      renderSpellSlots();
+      const slots = el.spellSlots.children;
+      slots[0].textContent = target[0];
+      slots[0].classList.add("is-hint");
+      slots[spellLen - 1].textContent = target[spellLen - 1];
+      slots[spellLen - 1].classList.add("is-hint");
+      flash("Cerebro a capté deux lettres");
+      return;
+    }
+    /* Sondage plausible : le Club AV a souvent raison, mais pas toujours. */
+    const n = el.choices.children.length;
+    const good = 42 + Math.floor(Math.random() * 32);
+    const rest = shuffle(Array.from({ length: n - 1 }, () => Math.random()));
+    const sum = rest.reduce((a, b) => a + b, 0) || 1;
+    let left = 100 - good;
+    const shares = rest.map((v, i) => {
+      const part = i === rest.length - 1 ? left : Math.round((v / sum) * (100 - good));
+      left -= part;
+      return part;
+    });
+    let k = 0;
+    [...el.choices.children].forEach((b) => {
+      const pct = b.lastElementChild.textContent === q.correct ? good : shares[k++];
+      const tag = document.createElement("span");
+      tag.className = "choice__pct";
+      tag.textContent = `${pct} %`;
+      b.appendChild(tag);
+      const bar = document.createElement("span");
+      bar.className = "choice__vote";
+      bar.style.width = "0%";
+      b.appendChild(bar);
+      requestAnimationFrame(() => { bar.style.width = `${pct}%`; });
+    });
+    flash("Le Club AV a voté");
+  });
 
   /* --- Questions à épeler : le mur devient le clavier --- */
   let spellActive = false;
@@ -830,6 +1093,7 @@
 
     state.locked = false;
     startTimer(durationFor(q, state.i));
+    renderJokers();
     /* Le bouton « Suivant » vient d'être masqué : sans ça le focus retombe sur
        le document et le lecteur d'écran n'annonce pas la nouvelle question. */
     if (state.i > 0) el.qText.focus({ preventScroll: true });
@@ -839,7 +1103,9 @@
     if (state.locked) return;
     state.locked = true;
     spellActive = false;
+    state.frozen = false;
     cancelAnimationFrame(state.raf);
+    renderJokers();
 
     const q = currentQuestion();
     const elapsed = (state.duration - Math.max(0, state.deadline - performance.now())) / 1000;
@@ -908,7 +1174,10 @@
   ================================================================== */
   /* Chaque écran reprend le focus sur son titre : sans ça, un utilisateur au
      clavier reste accroché à un bouton devenu invisible. */
-  const SCREEN_HEAD = { intro: () => el.brandTitle, quiz: () => el.qText, result: () => el.rankName };
+  const SCREEN_HEAD = {
+    intro: () => el.brandTitle, quiz: () => el.qText,
+    result: () => el.rankName, stats: () => el.statsTitle
+  };
 
   function show(name) {
     Object.values(screens).forEach((s) => s.classList.remove("is-active"));
@@ -967,13 +1236,20 @@
          <div class="stat"><b>${state.timeouts}</b><span>Dévoré·e par le chrono</span></div>`;
 
     show("result");
-    if (state.score >= (state.mode === "survie" ? 10 : 9)) sfx.win();
+    keepAwake(false);
+    recordGame(rank);
+
+    const parfait = state.mode === "survie" ? state.score >= 20 : state.score === TOTAL;
+    if (parfait) { celebrate(state.ud ? "🩸" : "🧇"); sfx.win(); flash("Sans la moindre fausse note"); }
+    else if (state.score >= (state.mode === "survie" ? 10 : 9)) sfx.win();
 
     if (state.mode === "defi") {
       store.set(STORE.done(defiSeed), JSON.stringify({
         s: state.score, r: rank.name, m: state.marks.join(""), t: Date.now()
       }));
+      if (!isReceived) bumpStreak();
       renderDefi();
+      renderStreak();
       setMode("defi");
     }
 
@@ -1000,9 +1276,13 @@
       : lastMode === "defi"
         ? `Hawkins Quiz — ${isReceived ? "Défi reçu" : `Défi nº ${dayN}`} : ${state.score}/${TOTAL} ${lastUD ? "🙃" : "🧇"}`
         : `Hawkins Quiz — ${state.score}/${TOTAL} ${lastUD ? "🙃" : "🧇"}`;
+    const jok = state.used.size ? `  ·  ${state.used.size} joker${state.used.size > 1 ? "s" : ""}` : "";
+    const serie = lastMode === "defi" && !isReceived && currentStreak()?.n > 1
+      ? `Série : ${currentStreak().n} jours` : "";
     return [
       head,
-      `Rang : ${lastRank ? lastRank.name : "—"}${lastUD ? "  ·  Mode Monde à l'Envers" : ""}`,
+      `Rang : ${lastRank ? lastRank.name : "—"}${lastUD ? "  ·  Mode Monde à l'Envers" : ""}${jok}`,
+      ...(serie ? [serie] : []),
       "",
       grid,
       "",
@@ -1020,12 +1300,14 @@
     el.board.hidden = true;
     Object.assign(state, {
       mode, deck: buildDeck(), i: 0, score: 0, streak: 0, best: 0,
-      timeouts: 0, times: [], marks: [], locked: true, phase: 0, ud: udOn, over: false
+      timeouts: 0, times: [], marks: [], locked: true, phase: 0, ud: udOn, over: false,
+      used: new Set(), frozen: false, frozenLeft: 0
     });
     el.score.textContent = "0";
     el.scoreIcon.textContent = udOn ? "🩸" : "🧇";
     twinkleOn = false;
     wallToken++;
+    keepAwake(true);
     show("quiz");
     render();
   }
@@ -1279,6 +1561,12 @@
   el.iniBack.addEventListener("click", popInitial);
   el.iniOk.addEventListener("click", commitInitials);
   el.spellBack.addEventListener("click", popSpell);
+  el.joker5050.addEventListener("click", joker5050);
+  el.jokerTime.addEventListener("click", jokerTime);
+  el.jokerAv.addEventListener("click", jokerAv);
+  el.btnStats.addEventListener("click", () => { sfx.click(); renderStats(); show("stats"); });
+  el.btnStatsBack.addEventListener("click", () => { sfx.click(); show("intro"); });
+  el.btnWipe.addEventListener("click", wipeData);
   el.seasons.forEach((b) => b.addEventListener("click", () => { sfx.click(); toggleSeason(Number(b.dataset.s)); }));
 
   el.btnSound.addEventListener("click", () => {
@@ -1321,6 +1609,7 @@
   renderSecrets();
   renderSeasons();
   renderDefi();
+  renderStreak();
   setMode(urlSeed !== null ? "defi" : "enquete");
 
   setInterval(refreshDay, 60000);
