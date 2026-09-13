@@ -958,6 +958,46 @@ const QUESTIONS = [
   }
 ];
 
+/* Rangs du mode Campagne : indexés sur le nombre de questions tenues. */
+const CAMPAIGN_RANKS = [
+  {
+    min: 0, max: 3,
+    name: "Mort au premier jet",
+    wall: "RATE",
+    line: "Le maître du donjon n'a même pas eu le temps de poser le décor. Il reste des chips, si ça console."
+  },
+  {
+    min: 4, max: 7,
+    name: "Personnage de niveau 1",
+    wall: "NOVICE",
+    line: "Vous avez survécu à la taverne et pas beaucoup plus. Tout le monde commence quelque part."
+  },
+  {
+    min: 8, max: 12,
+    name: "Aventurier du Hellfire",
+    wall: "EDDIE",
+    line: "Eddie vous aurait laissé jouer un magicien. Avec un peu de méfiance, mais il vous aurait laissé."
+  },
+  {
+    min: 13, max: 17,
+    name: "Paladin de Hawkins",
+    wall: "HEROS",
+    line: "Vous encaissez, vous relancez, vous tenez. C'est exactement ce qu'on demande à un paladin."
+  },
+  {
+    min: 18, max: 19,
+    name: "Maître du donjon",
+    wall: "MAITRE",
+    line: "À ce stade, c'est vous qui écrivez la campagne. Les autres ne font que lancer les dés."
+  },
+  {
+    min: 20, max: 9999,
+    name: "Campagne terminée",
+    wall: "VECNA",
+    line: "Vingt questions, vingt victoires. Même Vecna range son manuel et vous laisse la table."
+  }
+];
+
 /* Rangs du mode Survie : indexés sur le nombre de questions tenues. */
 const SURVIVAL_RANKS = [
   {

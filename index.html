@@ -34,8 +34,8 @@
 <meta name="apple-mobile-web-app-title" content="Hawkins Quiz">
 <link rel="preload" href="assets/fonts/rozhaone-400-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/spacegrotesk-400-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="assets/fonts.css?v=9">
-<link rel="stylesheet" href="assets/styles.css?v=9">
+<link rel="stylesheet" href="assets/fonts.css?v=10">
+<link rel="stylesheet" href="assets/styles.css?v=10">
 </head>
 
 <body class="phase-0">
@@ -44,6 +44,13 @@
 <div class="spores" id="spores" aria-hidden="true"></div>
 <div class="vignette" aria-hidden="true"></div>
 <div class="strike" id="strike" aria-hidden="true"></div>
+
+<div class="relay" id="relay" hidden>
+  <p class="relay__kicker">Passez l'appareil</p>
+  <p class="relay__who" id="relayWho">Joueur 2</p>
+  <p class="relay__score" id="relayScore"></p>
+  <button class="btn btn--primary" id="relayGo" type="button">Je suis prêt·e</button>
+</div>
 
 <div class="toast" id="toast" role="status" hidden>
   <span id="toastText"></span>
@@ -83,6 +90,12 @@
       <button class="mode mode--wide" id="modeDefi" type="button" aria-pressed="false">
         <b id="defiTitle">Défi du jour</b><span id="defiSub">Les mêmes 12 questions pour tout le monde</span>
       </button>
+      <button class="mode mode--wide" id="modeDuel" type="button" aria-pressed="false">
+        <b>Duel local</b><span>Deux joueurs, un seul appareil, chacun son tour</span>
+      </button>
+      <button class="mode mode--wide" id="modeCampagne" type="button" aria-pressed="false">
+        <b>Campagne</b><span>20 points de vie, un dé à vingt faces, aucune pitié</span>
+      </button>
     </div>
 
     <p class="record" id="record" hidden></p>
@@ -115,6 +128,11 @@
       <li class="only-enquete only-ud">Chrono réduit de moitié&nbsp;: <b>15 s, 12 s, 10 s</b>. Les questions arrivent à l'envers</li>
       <li class="only-survie"><b>Une seule erreur</b> et la chasse s'arrête. Pas de deuxième chance</li>
       <li class="only-survie">Le chrono perd une demi-seconde à chaque question. Il ne remonte jamais</li>
+      <li class="only-duel"><b>Six questions chacun</b>, en alternance. L'appareil passe de main en main</li>
+      <li class="only-duel">Pas de jokers : à armes égales, ou pas de duel du tout</li>
+      <li class="only-campagne"><b>20 points de vie.</b> Une erreur coûte 4, 6 ou 8 points selon le niveau</li>
+      <li class="only-campagne">Un <b>dé à vingt faces</b> est lancé avant chaque question. Un 20 écarte deux réponses, un 1 divise le chrono par deux</li>
+      <li class="only-campagne">La campagne s'arrête à zéro point de vie. Vingt questions tenues, et vous êtes sorti·e vivant·e</li>
       <li class="only-defi"><b>Les mêmes 12 questions pour tout le monde</b>, tirées par la date du jour</li>
       <li class="only-defi">Une seule tentative. Le filtre de saisons ne s'applique pas&nbsp;: tout le monde joue le même paquet</li>
       <li class="only-keys">Clavier&nbsp;: touches <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd></li>
@@ -131,8 +149,14 @@
         <span id="phaseName">Hawkins, 1983</span>
       </div>
       <div class="hud__progress" id="progress">Question 1 / 12</div>
+      <div class="hp" id="hp" hidden>
+        <span class="hp__die" id="hpDie">20</span>
+        <span class="hp__bar"><span class="hp__fill" id="hpFill"></span></span>
+        <span class="hp__val" id="hpVal">20</span>
+      </div>
       <button class="hud__score" id="scoreBtn" type="button" title="Gaufres Eggo">
         <span class="eggo" id="scoreIcon" aria-hidden="true">🧇</span><span id="score">0</span>
+        <span class="hud__duel" id="duelScore" hidden></span>
       </button>
     </div>
 
@@ -257,9 +281,9 @@
   <p><a href="https://github.com/sebplace/hawkins-quiz">Code source</a> · MIT</p>
 </footer>
 
-<script src="assets/core.js?v=9"></script>
-<script src="assets/art.js?v=9"></script>
-<script src="assets/questions.js?v=9"></script>
-<script src="assets/app.js?v=9"></script>
+<script src="assets/core.js?v=10"></script>
+<script src="assets/art.js?v=10"></script>
+<script src="assets/questions.js?v=10"></script>
+<script src="assets/app.js?v=10"></script>
 </body>
 </html>

@@ -15,6 +15,8 @@
   const SURV = { start: 15, step: .5, floor: 5 };
   const SURV_UD = { start: 10, step: .5, floor: 4 };
   const BOARD_SIZE = 10;
+  const HP_MAX = 20;                       // campagne : points de vie de départ
+  const CAMPAGNE_LONGUEUR = 20;            // questions à tenir pour boucler la campagne
 
   const PHASES = {
     1: { name: "Hawkins, 1983", sub: "Niveau 1 — Sous-sol des Wheeler" },
@@ -55,6 +57,8 @@
     btnNext: $("btnNext"), btnReplay: $("btnReplay"), btnShare: $("btnShare"), btnCard: $("btnCard"),
     udToggle: $("udToggle"), udLabel: $("udLabel"), secrets: $("secrets"),
     modeEnquete: $("modeEnquete"), modeSurvie: $("modeSurvie"), modeDefi: $("modeDefi"),
+    modeDuel: $("modeDuel"), modeCampagne: $("modeCampagne"),
+    relay: $("relay"), relayWho: $("relayWho"), relayScore: $("relayScore"), relayGo: $("relayGo"),
     defiTitle: $("defiTitle"), defiSub: $("defiSub"), record: $("record"),
     seasons: [...document.querySelectorAll(".season")],
     brandTitle: $("brandTitle"), scoreBtn: $("scoreBtn"), scoreIcon: $("scoreIcon"),
@@ -71,7 +75,8 @@
     board: $("board"), dayStreak: $("dayStreak"),
     jokers: $("jokers"), joker5050: $("joker5050"), jokerTime: $("jokerTime"), jokerAv: $("jokerAv"),
     btnStats: $("btnStats"), btnStatsBack: $("btnStatsBack"), btnWipe: $("btnWipe"),
-    statsBody: $("statsBody"), statsTitle: $("statsTitle"),
+    statsBody: $("statsBody"), statsTitle: $("statsTitle"), duelScore: $("duelScore"),
+    hp: $("hp"), hpDie: $("hpDie"), hpFill: $("hpFill"), hpVal: $("hpVal"),
     toast: $("toast"), toastText: $("toastText"), toastAct: $("toastAct"), toastNo: $("toastNo")
   };
   const screens = {
@@ -215,7 +220,7 @@
   }
 
   function qualifies(score, mode, ud) {
-    if (score <= 0) return false;
+    if (score <= 0 || mode === "duel") return false;   // un duel n'a pas de score individuel
     const b = getBoard(mode, ud);
     return b.length < BOARD_SIZE || score > b[b.length - 1].s;
   }
@@ -230,13 +235,13 @@
     return cut.indexOf(entry);
   }
 
-  const MODE_LABEL = { enquete: "Enquête", survie: "Survie", defi: "Défi" };
+  const MODE_LABEL = { enquete: "Enquête", survie: "Survie", defi: "Défi", duel: "Duel", campagne: "Campagne" };
 
   function renderBoard(mode, ud, highlight = -1) {
     const b = getBoard(mode, ud);
     if (!b.length) { el.board.hidden = true; return; }
     el.board.hidden = false;
-    const unit = mode === "survie" ? "" : ` / ${TOTAL}`;
+    const unit = (mode === "survie" || mode === "campagne") ? "" : ` / ${TOTAL}`;
     el.board.innerHTML =
       `<p class="board__title">Tableau d'honneur — ${MODE_LABEL[mode]}${ud ? " · Monde à l'Envers" : ""}</p>` +
       b.map((e, i) => `<div class="board__row${i === highlight ? " is-new" : ""}">
@@ -252,7 +257,7 @@
     if (!b.length) { el.record.hidden = true; return; }
     el.record.hidden = false;
     const top = b[0];
-    const unit = mode === "survie" ? " questions" : ` / ${TOTAL}`;
+    const unit = (mode === "survie" || mode === "campagne") ? " questions" : ` / ${TOTAL}`;
     el.record.innerHTML = `Record ${MODE_LABEL[mode]} : <b>${top.s}${unit}</b> par ${top.i}`;
   }
 
@@ -294,7 +299,7 @@
 
   function commitInitials() {
     if (ini.length < 3) return;
-    const rank = pushScore(ini.join(""), state.score, state.mode, state.ud);
+    const rank = pushScore(ini.join(""), state.mode === "campagne" ? state.i : state.score, state.mode, state.ud);
     iniActive = false;
     el.initials.hidden = true;
     sfx.carve();
@@ -316,7 +321,12 @@
     s.correct += state.score;
     s.asked += state.marks.length;
     s.timeouts += state.timeouts;
-    if (state.mode === "survie") {
+    if (state.mode === "duel") {
+      s.duel = (s.duel || 0) + 1;               // les duels comptent à part
+    } else if (state.mode === "campagne") {
+      s.camp = (s.camp || 0) + 1;
+      s.campBest = Math.max(s.campBest || 0, state.i);
+    } else if (state.mode === "survie") {
       s.surv++;
       s.survBest = Math.max(s.survBest, state.score);
     } else {
@@ -433,15 +443,16 @@
   const state = {
     mode: "enquete", deck: [], i: 0, score: 0, streak: 0, best: 0,
     timeouts: 0, times: [], marks: [], locked: true, ud: false, over: false,
-    used: new Set(), frozen: false, frozenLeft: 0,
+    used: new Set(), frozen: false, frozenLeft: 0, duel: [0, 0], hp: HP_MAX, roll: 0,
     phase: 0, raf: 0, deadline: 0, duration: 0, lastTick: -1, close: false
   };
 
   function setMode(m) {
     mode = m;
-    body.classList.remove("mode-survie", "mode-defi");
+    body.classList.remove("mode-survie", "mode-defi", "mode-duel", "mode-campagne");
     if (m !== "enquete") body.classList.add(`mode-${m}`);
-    [["enquete", el.modeEnquete], ["survie", el.modeSurvie], ["defi", el.modeDefi]]
+    [["enquete", el.modeEnquete], ["survie", el.modeSurvie], ["defi", el.modeDefi],
+      ["duel", el.modeDuel], ["campagne", el.modeCampagne]]
       .forEach(([key, btn]) => {
         btn.classList.toggle("is-on", m === key);
         btn.setAttribute("aria-pressed", String(m === key));
@@ -449,6 +460,8 @@
     const done = dailyDone();
     el.startLabel.textContent =
       m === "survie" ? "Lancer la chasse"
+      : m === "duel" ? "Lancer le duel"
+      : m === "campagne" ? "Ouvrir la campagne"
       : m === "defi" ? (done ? "Défi déjà relevé" : "Relever le défi")
       : "Entrer dans le sous-sol";
     el.btnStart.disabled = m === "defi" && !!done;
@@ -582,6 +595,26 @@
     return deck;
   }
 
+  /* --- Duel local : deux joueurs, un appareil, chacun son tour --- */
+  const DUEL_NOMS = ["Joueur 1", "Joueur 2"];
+  const duelTour = () => state.i % 2;          // 0 puis 1, en alternance
+
+  function renderDuelScore() {
+    const t = duelTour();
+    el.duelScore.innerHTML =
+      `<b class="${t === 0 ? "is-turn" : ""}">${state.duel[0]}</b>
+       <span>—</span>
+       <b class="${t === 1 ? "is-turn" : ""}">${state.duel[1]}</b>`;
+  }
+
+  function showRelay() {
+    const t = duelTour();
+    el.relayWho.textContent = DUEL_NOMS[t];
+    el.relayScore.textContent = `${state.duel[0]} — ${state.duel[1]}  ·  question ${state.i + 1} sur ${TOTAL}`;
+    el.relay.hidden = false;
+    el.relayGo.focus({ preventScroll: true });
+  }
+
   /* En Survie, on recycle le paquet indéfiniment. */
   function currentQuestion() {
     if (state.i < state.deck.length) return state.deck[state.i];
@@ -589,11 +622,12 @@
     return state.deck[state.i];
   }
 
+  const sansFin = () => state.mode === "survie" || state.mode === "campagne";
   const phaseFor = (q, i) =>
-    state.mode === "survie" ? Math.min(3, Math.floor(i / 5) + 1) : q.level;
+    sansFin() ? Math.min(3, Math.floor(i / 5) + 1) : q.level;
 
   function phaseLabels() {
-    if (state.mode === "survie") return PHASES_SURV;
+    if (sansFin()) return PHASES_SURV;
     return state.ud ? PHASES_UD : PHASES;
   }
 
@@ -616,9 +650,11 @@
     /* Chaque format a son propre rythme : épeler ou ordonner prend du temps,
        un vrai/faux doit rester un réflexe. */
     const bonus = q ? ({ spell: 8, chrono: 10, draw: 4, vf: -6 }[q.type] || 0) : 0;
-    if (state.mode === "survie") {
+    if (sansFin()) {
       const s = state.ud ? SURV_UD : SURV;
-      return Math.max(4, Math.max(s.floor, s.start - i * s.step) + bonus);
+      const base = Math.max(4, Math.max(s.floor, s.start - i * s.step) + bonus);
+      /* Un 1 naturel au dé réduit le temps de moitié, en campagne uniquement. */
+      return state.mode === "campagne" && state.roll === 1 ? Math.max(4, base / 2) : base;
     }
     return Math.max(6, (state.ud ? TIME_UD : TIME)[q.level] + bonus);
   }
@@ -671,7 +707,7 @@
   ];
 
   function renderJokers() {
-    const hidden = state.mode === "defi";
+    const hidden = state.mode === "defi" || state.mode === "duel";
     el.jokers.hidden = hidden;
     if (hidden) return;
     const q = state.deck.length ? currentQuestion() : null;
@@ -851,7 +887,7 @@
     const q = currentQuestion();
     setPhase(phaseFor(q, state.i));
 
-    el.progress.textContent = state.mode === "survie"
+    el.progress.textContent = sansFin()
       ? `Question ${state.i + 1}`
       : `Question ${state.i + 1} / ${TOTAL}`;
     el.qLevel.textContent = phaseLabels()[state.phase].sub;
@@ -867,6 +903,9 @@
     el.choices.innerHTML = "";
 
     const kind = q.type || "qcm";
+    /* En campagne, le dé est lancé avant que le chrono ne démarre. */
+    if (state.mode === "campagne") lancerDe(q);
+    renderHp();
     const useChoices = kind === "qcm" || kind === "intrus" || kind === "draw" || kind === "vf";
     el.choices.hidden = !useChoices;
     el.spell.hidden = kind !== "spell";
@@ -904,7 +943,7 @@
     }
 
     /* L'horloge de Vecna sonne à mi-parcours dans le Monde à l'Envers. */
-    if (state.ud && state.mode !== "survie" && state.i === TOTAL / 2) {
+    if (state.ud && !sansFin() && state.i === TOTAL / 2) {
       sfx.chime(0); sfx.chime(1);
       flash("L'horloge sonne");
     }
@@ -912,6 +951,8 @@
     state.locked = false;
     startTimer(durationFor(q, state.i));
     renderJokers();
+    if (state.mode === "duel") renderDuelScore();
+    else el.score.textContent = state.score;
     /* Le bouton « Suivant » vient d'être masqué : sans ça le focus retombe sur
        le document et le lecteur d'écran n'annonce pas la nouvelle question. */
     if (state.i > 0) el.qText.focus({ preventScroll: true });
@@ -949,6 +990,7 @@
     if (ok) {
       el.hunt.classList.remove("is-close");
       state.score++;
+      if (state.mode === "duel") state.duel[duelTour()]++;
       state.streak++;
       state.best = Math.max(state.best, state.streak);
       state.marks.push(state.ud ? "🩸" : "🧇");
@@ -969,6 +1011,13 @@
         sfx.wrong(); buzz([30, 60, 30]);
       }
       if (state.mode === "survie") state.over = true;
+      else if (state.mode === "campagne") {
+        const d = degats(q) + (choice === null ? 2 : 0);
+        state.hp -= d;
+        renderHp();
+        flash(`${d} points de dégâts`);
+        if (state.hp <= 0) state.over = true;
+      }
     }
 
     const head = choice === null
@@ -976,17 +1025,62 @@
       : ok ? "<b>Exact.</b> " : `<b>Raté.</b> C'était «&nbsp;${q.correct}&nbsp;». `;    el.reveal.innerHTML = head + q.fact;
     el.reveal.classList.add("is-on");
 
-    const last = state.over || (state.mode !== "survie" && state.i === TOTAL - 1);
+    const fini = state.mode === "campagne"
+      ? state.i === CAMPAGNE_LONGUEUR - 1
+      : (!sansFin() && state.i === TOTAL - 1);
+    const last = state.over || fini;
     el.btnNext.hidden = false;
     el.btnNext.textContent = last ? "Voir le verdict" : "Suivant";
     el.btnNext.focus({ preventScroll: true });
+  }
+
+  /* --- Campagne : points de vie, dé à vingt faces et dégâts par niveau --- */
+  const degats = (q) => 2 + (q.level || 1) * 2;        // 4, 6 ou 8
+
+  function renderHp() {
+    const campagne = state.mode === "campagne";
+    el.hp.hidden = !campagne;
+    if (!campagne) return;
+    const part = Math.max(0, state.hp) / HP_MAX;
+    el.hpFill.style.transform = `scaleX(${part})`;
+    el.hpFill.classList.toggle("is-low", part <= .35);
+    el.hpVal.textContent = Math.max(0, state.hp);
+    el.hpDie.textContent = state.roll || "—";
+    el.hpDie.classList.toggle("is-crit", state.roll === 20);
+    el.hpDie.classList.toggle("is-fumble", state.roll === 1);
+  }
+
+  /* Le dé est lancé avant chaque question : 20 écarte deux réponses,
+     1 divise le chrono par deux, le reste est pure ambiance. */
+  function lancerDe(q) {
+    state.roll = 1 + Math.floor(Math.random() * 20);
+    el.hpDie.classList.remove("is-rolling");
+    void el.hpDie.offsetWidth;
+    el.hpDie.classList.add("is-rolling");
+    renderHp();
+    if (state.roll === 20) {
+      sfx.unlock();
+      flash("20 naturel — le sort tourne");
+      if (!["spell", "chrono", "vf"].includes(q.type)) {
+        setTimeout(() => {
+          const mauvaises = [...el.choices.children].filter((b) => b.lastElementChild.textContent !== q.correct);
+          shuffle(mauvaises).slice(0, 2).forEach((b) => { b.classList.add("is-faded"); b.disabled = true; });
+        }, 320);
+      }
+    } else if (state.roll === 1) {
+      sfx.wrong();
+      flash("1 naturel — échec critique");
+    }
   }
 
   function next() {
     sfx.click();
     if (state.over) return finish();
     state.i++;
-    if (state.mode !== "survie" && state.i >= TOTAL) return finish();
+    if (!sansFin() && state.i >= TOTAL) return finish();
+    if (state.mode === "campagne" && state.i >= CAMPAGNE_LONGUEUR) return finish();
+    /* En duel, on interpose l'écran de passage avant d'afficher la question. */
+    if (state.mode === "duel") { showRelay(); return; }
     render();
   }
 
@@ -1014,7 +1108,20 @@
     line: "Zéro sur douze. Statistiquement, il faut le faire exprès. La conclusion s'impose : le monstre, c'est vous."
   };
 
+  const DUEL_RANKS = [
+    { name: "Match nul", wall: "EGALITE", line: "Personne ne cède. Il va falloir rejouer, et cette fois sans excuses." },
+    { name: "Joueur 1 l'emporte", wall: "PREMIER", line: "La victoire est nette. Le sous-sol des Wheeler a un nouveau maître." },
+    { name: "Joueur 2 l'emporte", wall: "SECOND", line: "Retourné la situation depuis le siège du passager. Élégant." }
+  ];
+
   const pickRank = () => {
+    if (state.mode === "duel") {
+      const [a, b] = state.duel;
+      return a === b ? DUEL_RANKS[0] : (a > b ? DUEL_RANKS[1] : DUEL_RANKS[2]);
+    }
+    if (state.mode === "campagne") {
+      return CAMPAIGN_RANKS.find((r) => state.i >= r.min && state.i <= r.max) || CAMPAIGN_RANKS[0];
+    }
     const table = state.mode === "survie" ? SURVIVAL_RANKS : RANKS;
     if (state.mode !== "survie" && state.score === 0) return ZERO_RANK;
     return table.find((r) => state.score >= r.min && state.score <= r.max) || table[0];
@@ -1051,6 +1158,16 @@
          <div class="stat"><b>${avg}s</b><span>Temps moyen</span></div>
          <div class="stat"><b>${(durationFor(null, state.i)).toFixed(1)}s</b><span>Dernier chrono</span></div>
          <div class="stat"><b>${state.timeouts}</b><span>Rattrapé·e</span></div>`
+      : state.mode === "duel"
+      ? `<div class="stat"><b>${state.duel[0]}</b><span>Joueur 1</span></div>
+         <div class="stat"><b>${state.duel[1]}</b><span>Joueur 2</span></div>
+         <div class="stat"><b>${avg}s</b><span>Temps moyen</span></div>
+         <div class="stat"><b>${state.timeouts}</b><span>Dévoré·e par le chrono</span></div>`
+      : state.mode === "campagne"
+      ? `<div class="stat"><b>${state.i}</b><span>Questions tenues</span></div>
+         <div class="stat"><b>${Math.max(0, state.hp)}</b><span>Points de vie</span></div>
+         <div class="stat"><b>${state.score}</b><span>Bonnes réponses</span></div>
+         <div class="stat"><b>${avg}s</b><span>Temps moyen</span></div>`
       : `<div class="stat"><b>${state.score}/${TOTAL}</b><span>${unit}</span></div>
          <div class="stat"><b>${state.best}</b><span>Meilleure série</span></div>
          <div class="stat"><b>${avg}s</b><span>Temps moyen</span></div>
@@ -1074,7 +1191,8 @@
       setMode("defi");
     }
 
-    const qualified = qualifies(state.score, state.mode, state.ud);
+    const scoreClasse = state.mode === "campagne" ? state.i : state.score;
+    const qualified = qualifies(scoreClasse, state.mode, state.ud);
     renderBoard(state.mode, state.ud, -1);
 
     await sleep(400);
@@ -1094,6 +1212,8 @@
     }, "");
     const head = lastMode === "survie"
       ? `Hawkins Quiz — Survie : ${state.score} questions tenues ${lastUD ? "🙃" : "🧇"}`
+      : lastMode === "duel"
+        ? `Hawkins Quiz — Duel : ${state.duel[0]} — ${state.duel[1]}`
       : lastMode === "defi"
         ? `Hawkins Quiz — ${isReceived ? "Défi reçu" : `Défi nº ${dayN}`} : ${state.score}/${TOTAL} ${lastUD ? "🙃" : "🧇"}`
         : `Hawkins Quiz — ${state.score}/${TOTAL} ${lastUD ? "🙃" : "🧇"}`;
@@ -1119,13 +1239,18 @@
     iniActive = false;
     el.initials.hidden = true;
     el.board.hidden = true;
+    el.relay.hidden = true;
     Object.assign(state, {
       mode, deck: buildDeck(), i: 0, score: 0, streak: 0, best: 0,
       timeouts: 0, times: [], marks: [], locked: true, phase: 0, ud: udOn, over: false,
-      used: new Set(), frozen: false, frozenLeft: 0
+      used: new Set(), frozen: false, frozenLeft: 0, duel: [0, 0], hp: HP_MAX, roll: 0
     });
     el.score.textContent = "0";
     el.scoreIcon.textContent = udOn ? "🩸" : "🧇";
+    const duel = mode === "duel";
+    el.scoreIcon.hidden = duel;
+    el.score.hidden = duel;
+    el.duelScore.hidden = !duel;
     wall.setTwinkle(false);
     wall.bump();
     keepAwake(true);
@@ -1386,6 +1511,13 @@
   el.modeEnquete.addEventListener("click", () => { sfx.click(); setMode("enquete"); });
   el.modeSurvie.addEventListener("click", () => { sfx.click(); setMode("survie"); });
   el.modeDefi.addEventListener("click", () => { sfx.click(); setMode("defi"); });
+  el.modeDuel.addEventListener("click", () => { sfx.click(); setMode("duel"); });
+  el.modeCampagne.addEventListener("click", () => { sfx.click(); setMode("campagne"); });
+  el.relayGo.addEventListener("click", () => {
+    el.relay.hidden = true;
+    sfx.click(); buzz(10);
+    render();
+  });
   el.btnCard.addEventListener("click", shareCard);
   el.iniBack.addEventListener("click", popInitial);
   el.iniOk.addEventListener("click", commitInitials);

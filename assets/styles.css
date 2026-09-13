@@ -451,10 +451,74 @@ body.mode-survie .only-enquete { display: none; }
 body.mode-defi .only-defi { display: list-item; }
 body.mode-defi .only-enquete, body.mode-defi .only-survie { display: none; }
 body.mode-defi .seasons { opacity: .35; pointer-events: none; }
-.modes { grid-template-areas: "a b" "c c"; }
+.only-duel { display: none; }
+body.mode-duel .only-duel { display: list-item; }
+body.mode-duel .only-enquete, body.mode-duel .only-survie, body.mode-duel .only-defi { display: none; }
+.only-campagne { display: none; }
+body.mode-campagne .only-campagne { display: list-item; }
+body.mode-campagne .only-enquete, body.mode-campagne .only-survie,
+body.mode-campagne .only-defi, body.mode-campagne .only-duel { display: none; }
+.modes { grid-template-areas: "a b" "c c" "d d" "e e"; }
 .mode--wide { grid-area: c; }
+#modeDuel { grid-area: d; }
+#modeCampagne { grid-area: e; }
 .mode--done { border-style: dashed; }
 .mode--done b { color: var(--accent-2) !important; }
+
+/* ---------- Points de vie et dé de la campagne ---------- */
+.hp { display: flex; align-items: center; gap: .5rem; }
+.hp__die {
+  flex: 0 0 auto; width: 28px; height: 28px; display: grid; place-items: center;
+  font-size: .72rem; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: var(--accent-2); background: rgba(255, 255, 255, .07);
+  clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+  transition: color .3s, background .3s;
+}
+.hp__die.is-crit { color: #05100d; background: #2ee6a8; }
+.hp__die.is-fumble { color: #fff; background: var(--blood); }
+.hp__die.is-rolling { animation: dieRoll .5s steps(6); }
+@keyframes dieRoll { 50% { transform: rotate(180deg) scale(1.2); } }
+.hp__bar {
+  width: clamp(70px, 16vw, 130px); height: 8px; border-radius: 99px;
+  background: rgba(255, 255, 255, .09); overflow: hidden;
+}
+.hp__fill {
+  display: block; height: 100%; width: 100%; border-radius: 99px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transform-origin: left center;
+  transition: transform .5s var(--ease), background .4s;
+}
+.hp__fill.is-low { background: linear-gradient(90deg, #e8112d, #ff7a2f); }
+.hp__val { font-size: .8rem; font-variant-numeric: tabular-nums; color: var(--fg); }
+
+/* ---------- Relais du duel ---------- */
+.relay {
+  position: fixed; inset: 0; z-index: 10; display: grid; place-content: center;
+  text-align: center; gap: .4rem; padding: 2rem;
+  background: radial-gradient(120% 90% at 50% 40%, var(--bg-2) 0%, var(--bg) 55%, #04040a 100%);
+  animation: fadeUp .4s var(--ease) both;
+}
+.relay__kicker {
+  margin: 0; font-size: .72rem; letter-spacing: .42em; text-transform: uppercase; color: var(--muted);
+}
+.relay__who {
+  margin: .3rem 0 .2rem; font-family: "Rozha One", Georgia, serif; font-weight: 400;
+  font-size: clamp(2.4rem, 10vw, 4.2rem); line-height: 1;
+  color: #16060a; -webkit-text-stroke: 1.6px var(--accent); text-shadow: var(--glow);
+}
+.relay__score {
+  margin: 0 0 1.8rem; font-size: .8rem; letter-spacing: .2em;
+  text-transform: uppercase; color: var(--muted); font-variant-numeric: tabular-nums;
+}
+.relay .btn { justify-self: center; }
+
+/* Score des deux joueurs dans le bandeau */
+.hud__duel {
+  display: flex; align-items: center; gap: .45rem;
+  font-size: .9rem; font-variant-numeric: tabular-nums; color: var(--muted);
+}
+.hud__duel b { color: var(--fg); font-weight: 700; }
+.hud__duel .is-turn { color: var(--accent); }
 
 /* ---------- Filtre par saison ---------- */
 .seasons {
