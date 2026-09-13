@@ -114,9 +114,14 @@ const QUESTIONS = [
   },
   {
     level: 1, s: 2,
-    q: "Qui est Billy Hargrove pour Max ?",
-    choices: ["Son demi-frère", "Son cousin", "Son voisin", "Son petit ami"],
-    fact: "Demi-frère, conducteur catastrophique et problème à lui tout seul."
+    q: "Quel lien unit Billy Hargrove et Max Mayfield ?",
+    choices: [
+      "Le père de Billy a épousé la mère de Max",
+      "Ils ont la même mère",
+      "Ils sont cousins germains",
+      "Ils ont grandi voisins en Californie"
+    ],
+    fact: "Neil Hargrove a épousé Susan Mayfield. Aucun lien de sang : Billy est le frère par alliance de Max, et un conducteur catastrophique."
   },
   {
     level: 1, s: 2,
@@ -146,7 +151,7 @@ const QUESTIONS = [
     level: 1, s: 3,
     q: "Quel centre commercial flambant neuf ouvre en saison 3 ?",
     choices: ["Le Starcourt Mall", "Le Hawkins Plaza", "Le Midway Mall", "Le Palace Mall"],
-    fact: "Ouvert en juin, fermé en juillet. Un record difficile à battre."
+    fact: "Le Starcourt a brûlé dans la nuit du 4 juillet 1985. Bilan officiel : trente morts, et une version des faits très arrangée."
   },
   {
     level: 1, s: 3,
@@ -297,18 +302,18 @@ const QUESTIONS = [
     level: 2, s: 1,
     q: "Comment s'appelle la mère biologique d'Eleven ?",
     choices: ["Terry Ives", "Becky Ives", "Karen Wheeler", "Joyce Byers"],
-    fact: "Terry Ives. Elle a passé des années à répéter les mêmes quatre mots. Personne n'écoutait."
+    fact: "Terry Ives. Après les électrochocs, elle répète six fragments en boucle. Il a fallu des années pour comprendre que c'était un message."
   },
   {
     level: 2, s: 1,
     q: "Comment les garçons improvisent-ils un caisson d'isolation sensorielle ?",
     choices: [
-      "Avec la piscine de l'école et beaucoup de sel",
-      "Avec une baignoire et des glaçons",
-      "Avec le réservoir du labo",
-      "Avec le lac Lover's Lake"
+      "Une pataugeoire montée au collège, remplie de sel de déneigement",
+      "La piscine municipale et des sacs de sel de table",
+      "La baignoire des Byers et beaucoup de glaçons",
+      "Le réservoir récupéré au laboratoire"
     ],
-    fact: "Trois tonnes de sel empruntées à la ville. M. Clarke n'a jamais posé de questions."
+    fact: "Ils ont choisi le collège pour son stock de sel de déneigement. M. Clarke a donné la recette au téléphone, un samedi soir, sans poser la moindre question."
   },
   {
     level: 2, s: 2,
@@ -326,23 +331,23 @@ const QUESTIONS = [
     level: 2, s: 2,
     q: "Qu'est-ce qui pourrit dans les champs de citrouilles autour de Hawkins ?",
     choices: [
-      "Toute la récolte, à cause des tunnels",
+      "Toute la récolte, empoisonnée depuis les tunnels",
       "Rien, c'est une rumeur",
       "Seulement le champ des Byers",
       "Les pommes de terre, pas les citrouilles"
     ],
-    fact: "Les tunnels sous la ville empoisonnent tout. Le fermier accuse les engrais."
+    fact: "Le fermier Merrill accuse son voisin Eugene de l'avoir empoisonné. Hopper n'y croit pas : la pourriture rayonne depuis le laboratoire."
   },
   {
     level: 2, s: 3,
     q: "Comment Robin perce-t-elle le code du message russe ?",
     choices: [
-      "Elle parle quatre langues et travaille au comptoir",
+      "Elle parle quatre langues et décode à l'oreille",
       "Elle a un oncle traducteur",
-      "Elle utilise l'ordinateur du labo",
+      "Elle utilise l'ordinateur du laboratoire",
       "Elle demande à Murray"
     ],
-    fact: "Quatre langues, un job d'été et zéro reconnaissance. L'histoire de sa vie."
+    fact: "Quatre langues, dit-elle : espagnol, français, italien... et le pig latin. Le russe n'en fait pas partie, ce qui ne l'a pas empêchée de tout déchiffrer."
   },
   {
     level: 2, s: 3,
@@ -401,7 +406,7 @@ const QUESTIONS = [
     level: 2, s: 2,
     q: "Combien de règles Hopper impose-t-il à Eleven dans la cabane ?",
     choices: ["Trois", "Une seule", "Cinq", "Dix"],
-    fact: "Trois. Portes verrouillées, rideaux tirés, et sortie interdite. Score de respect : zéro sur trois."
+    fact: "Trois. Rideaux toujours tirés, porte verrouillée, et interdiction de sortir. Eleven les a enfreintes toutes les trois le même soir."
   },
   {
     level: 2, s: 3,
@@ -429,9 +434,9 @@ const QUESTIONS = [
   },
   {
     level: 2, s: 2,
-    q: "Qui règne sur le Palace Arcade et monnaie chaque information ?",
+    q: "Qui tient le comptoir du Palace Arcade et monnaie chaque information ?",
     choices: ["Keith", "Murray", "Billy", "Steve"],
-    fact: "Keith. Son tarif : une présentation à Nancy Wheeler. Dustin a accepté sans réfléchir."
+    fact: "Keith, simple employé. Son tarif : un rendez-vous avec Nancy Wheeler. Mike a refusé net ; Dustin et Lucas étaient prêts à signer."
   },
 
   /* ================================================================
@@ -463,9 +468,9 @@ const QUESTIONS = [
   },
   {
     level: 3, s: 2,
-    q: "Quel est le nom du chat des Byers ?",
-    choices: ["Mews", "Yertle", "Mittens", "Dart"],
-    fact: "Disparu en service, digéré par un « têtard ». Repose en paix."
+    q: "Comment s'appelle la chatte que Dart dévore chez Dustin ?",
+    choices: ["Mews", "Yurtle", "Mittens", "Tews"],
+    fact: "Mews, la chatte adorée de Claudia Henderson. Dustin l'a enterrée dans le jardin et a envoyé sa mère la chercher à l'autre bout du quartier."
   },
   {
     level: 3, s: 4,
@@ -517,19 +522,24 @@ const QUESTIONS = [
     level: 3, s: 4,
     q: "Quel est le nom de l'installation où Eleven retrouve ses pouvoirs en saison 4 ?",
     choices: ["Le projet NINA", "Le projet MKUltra", "Le laboratoire Creel", "La station Cerebro"],
-    fact: "Un caisson, des souvenirs, et Brenner de retour. Rien ne se passe jamais bien avec Brenner."
+    fact: "Un caisson d'isolation au fond d'un ancien silo à missiles du Nevada, et Brenner de retour. Rien ne se passe jamais bien avec Brenner."
   },
   {
     level: 3, s: 3,
     q: "Quel tueur russe poursuit Hopper et Joyce dans tout Hawkins ?",
     choices: ["Grigori", "Alexei", "Dmitri", "Yuri"],
-    fact: "Grigori. Surnommé « le Terminator » par Murray, qui n'avait pas tort."
+    fact: "Grigori. C'est le maire Kline qui le surnomme « Arnold Schwarzenegger » — la ressemblance avec le T-800 est entièrement assumée par la production."
   },
   {
     level: 3, s: 3,
-    q: "Quelle employée du centre commercial est la première « écorchée » de la saison 3 ?",
-    choices: ["Heather Holloway", "Robin Buckley", "Karen Wheeler", "Chrissy Cunningham"],
-    fact: "Heather, maître-nageuse. Le Mind Flayer recrute avant tout le monde."
+    q: "Quel métier exerce Heather Holloway en saison 3 ?",
+    choices: [
+      "Maître-nageuse à la piscine municipale",
+      "Vendeuse au Starcourt Mall",
+      "Serveuse chez Enzo's",
+      "Journaliste au Hawkins Post"
+    ],
+    fact: "Maître-nageuse, et collègue de Billy — qui l'enlèvera le lendemain de son propre écorchement. C'est son père qui dirige le Hawkins Post."
   },
   {
     level: 3, s: 2,
@@ -579,9 +589,9 @@ const QUESTIONS = [
   },
   {
     level: 3, s: 3,
-    q: "Quel film les gamins vont-ils voir au cinéma du Starcourt ?",
-    choices: ["Le Jour des morts-vivants", "Retour vers le futur", "Les Goonies", "E.T."],
-    fact: "Ils y vont surtout pour l'air conditionné. Et pour espionner des Russes."
+    q: "Quel film les personnages regardent-ils dans le cinéma du Starcourt ?",
+    choices: ["Retour vers le futur", "Le Jour des morts-vivants", "Les Goonies", "E.T."],
+    fact: "Dustin planque tout le monde dans une avant-première bondée pour semer les Russes. Le Jour des morts-vivants, lui, n'est qu'une affiche dans le hall."
   },
   {
     level: 3, s: 4,
@@ -591,20 +601,20 @@ const QUESTIONS = [
   },
   {
     level: 3, s: 1,
-    q: "Comment Eleven prouve-t-elle ses pouvoirs à Mike et Dustin la première fois ?",
+    q: "Comment Eleven montre-t-elle ses pouvoirs aux garçons pour la première fois ?",
     choices: [
+      "Elle claque la porte de la chambre à distance",
       "Elle écrase une canette par la pensée",
-      "Elle allume les guirlandes",
-      "Elle soulève la table",
-      "Elle arrête une horloge"
+      "Elle fait léviter le Faucon Millenium",
+      "Elle allume les guirlandes de Noël"
     ],
-    fact: "Une canette écrasée, deux gamins convaincus. Le meilleur pitch de recrutement de la série."
+    fact: "Lucas voulait sortir prévenir Karen Wheeler : la porte s'est refermée seule, et Eleven saignait du nez. La fameuse canette écrasée, elle, n'est qu'un souvenir du laboratoire."
   },
   {
     level: 3, s: 2,
     q: "Quel est le nom de la tortue de Dustin ?",
-    choices: ["Yertle", "Mews", "Dart", "Chester"],
-    fact: "Yertle. Elle n'a rien demandé et s'en est sortie mieux que le chat."
+    choices: ["Yurtle", "Mews", "Dart", "Chester"],
+    fact: "Yurtle, avec un U — clin d'œil à la tortue de Dr. Seuss. Expulsée de son terrarium pour y loger Dart, elle s'en est bien mieux sortie que la chatte."
   },
   {
     level: 3, s: 1,
@@ -616,10 +626,10 @@ const QUESTIONS = [
     level: 3, s: 3,
     q: "Que gagne Alexei à la fête foraine juste avant la fin ?",
     choices: ["Une peluche de Woody Woodpecker", "Un poisson rouge", "Un ballon", "Une casquette"],
-    fact: "Il a triché au jeu, gagné sa peluche, puis... la série a fait ce qu'elle fait toujours."
+    fact: "Il a crevé tous les ballons sans en manquer un seul, puis a couru montrer sa peluche à Murray en criant que ce n'était pas truqué. Grigori l'a abattu dans la seconde."
   },
   {
-    level: 3, s: 1, type: "spell",
+    level: 3, s: 4, type: "spell",
     q: "Épelez le nom de famille de Vecna, celui de sa naissance.",
     answer: "CREEL",
     fact: "Creel. Un nom de famille, une maison, et soixante ans de malentendu."
@@ -634,7 +644,7 @@ const QUESTIONS = [
     level: 3, s: 2, type: "spell",
     q: "Épelez le nom de la salle d'arcade de Hawkins.",
     answer: "PALACE",
-    fact: "Le Palace Arcade. Keith y règne, et il monnaie chaque information."
+    fact: "Le Palace Arcade. Keith y tient le comptoir, et il monnaie chaque information."
   },
   {
     level: 3, s: 3, type: "spell",
