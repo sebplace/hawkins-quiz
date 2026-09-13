@@ -47,6 +47,10 @@ body.ud.phase-3 { --bg: #04010a; --bg-2: #0c0420; --accent: #c74cff; --accent-2:
 
 [hidden] { display: none !important; }
 
+/* Le focus déplacé par le script ne doit pas dessiner un cadre au clic. */
+[tabindex="-1"]:focus { outline: none; }
+[tabindex="-1"]:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 6px; border-radius: 4px; }
+
 html { -webkit-text-size-adjust: 100%; }
 
 html, body { height: 100%; }
@@ -712,5 +716,25 @@ body.flipped #app { transform: rotate(180deg); }
   .mode span { display: none; }
   .result__rank { font-size: 2rem; }
   .marks { margin-bottom: 1rem; }
-  .board { display: none; }
+  /* Le tableau reste accessible en paysage : compact plutôt que masqué. */
+  .board { margin-top: .8rem; padding: .6rem .8rem; max-height: 38svh; overflow-y: auto; }
+  .board__title { margin-bottom: .4rem; }
+  .board__row { padding: .2rem 0; font-size: .76rem; }
+  .board__row b { font-size: .95rem; }
+  .initials { padding: .7rem .8rem; margin-bottom: .8rem; }
+  .initials__slot { width: 34px; height: 42px; font-size: 1.4rem; }
+  .initials__hint { margin-bottom: .6rem; }
+}
+
+/* ---------- Contraste renforcé sur demande du système ---------- */
+@media (prefers-contrast: more) {
+  :root { --muted: #cdd2e0; --line: rgba(239, 230, 214, .34); }
+  .brand__kicker, .wall__caption, .secrets, .record, .result__kicker,
+  .hud, .card__level, .stat span, .board__row, .spell__hint, .foot { color: #cdd2e0; }
+  .foot a { color: #e6e9f2; }
+  .reveal { color: #dfe3ee; }
+  .choice { background: rgba(255, 255, 255, .08); }
+  .btn--ghost { color: #e6e9f2; }
+  .rules { color: #cdd2e0; }
+  .rules__hint { color: #b3bacb; }
 }

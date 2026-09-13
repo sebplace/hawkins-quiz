@@ -432,6 +432,18 @@
   const boardKey = (mode, ud) => `${STORE.board(mode)}${ud ? ".ud" : ""}`;
   const getBoard = (mode, ud) => store.json(boardKey(mode, ud), []);
 
+  /* Les défis joués s'accumulaient sans limite : une clé par graine. */
+  function purgeOldChallenges(maxDays = 45) {
+    const limit = Date.now() - maxDays * 86400000;
+    let keys = [];
+    try { keys = Object.keys(localStorage); } catch { return; }
+    keys.filter((k) => k.startsWith("hq.done.")).forEach((k) => {
+      const rec = store.json(k, null);
+      const stamp = rec && rec.t ? rec.t : 0;
+      if (stamp < limit) { try { localStorage.removeItem(k); } catch { /* ignoré */ } }
+    });
+  }
+
   function qualifies(score, mode, ud) {
     if (score <= 0) return false;
     const b = getBoard(mode, ud);
@@ -557,10 +569,24 @@
     const n = raw ? parseInt(raw, 36) : NaN;
     return Number.isFinite(n) && n > 0 ? n >>> 0 : null;
   })();
-  const dayN = todayNumber();
-  const defiSeed = urlSeed ?? seedForDay(dayN);
-  const isReceived = urlSeed !== null && urlSeed !== seedForDay(dayN);
+  let dayN = todayNumber();
+  let defiSeed = urlSeed ?? seedForDay(dayN);
+  let isReceived = urlSeed !== null && urlSeed !== seedForDay(dayN);
   const dailyDone = () => store.json(STORE.done(defiSeed), null);
+
+  /* Un onglet laissé ouvert doit basculer sur le défi du lendemain à minuit —
+     mais jamais au milieu d'une partie. */
+  function refreshDay() {
+    if (screens.quiz.classList.contains("is-active")) return;
+    const n = todayNumber();
+    if (n === dayN) return;
+    dayN = n;
+    if (urlSeed === null) defiSeed = seedForDay(dayN);
+    isReceived = urlSeed !== null && urlSeed !== seedForDay(dayN);
+    renderDefi();
+    setMode(mode);
+    flash("Nouveau jour, nouveau défi");
+  }
 
   function renderDefi() {
     const done = dailyDone();
@@ -804,6 +830,9 @@
 
     state.locked = false;
     startTimer(durationFor(q, state.i));
+    /* Le bouton « Suivant » vient d'être masqué : sans ça le focus retombe sur
+       le document et le lecteur d'écran n'annonce pas la nouvelle question. */
+    if (state.i > 0) el.qText.focus({ preventScroll: true });
   }
 
   function answer(choice) {
@@ -877,10 +906,16 @@
   /* ==================================================================
      8. Résultat
   ================================================================== */
+  /* Chaque écran reprend le focus sur son titre : sans ça, un utilisateur au
+     clavier reste accroché à un bouton devenu invisible. */
+  const SCREEN_HEAD = { intro: () => el.brandTitle, quiz: () => el.qText, result: () => el.rankName };
+
   function show(name) {
     Object.values(screens).forEach((s) => s.classList.remove("is-active"));
     screens[name].classList.add("is-active");
     window.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" });
+    /* Différé d'une frame : le contenu de l'écran est rendu juste après l'appel. */
+    requestAnimationFrame(() => SCREEN_HEAD[name]?.().focus({ preventScroll: true }));
   }
 
   const ZERO_RANK = {
@@ -935,7 +970,9 @@
     if (state.score >= (state.mode === "survie" ? 10 : 9)) sfx.win();
 
     if (state.mode === "defi") {
-      store.set(STORE.done(defiSeed), JSON.stringify({ s: state.score, r: rank.name, m: state.marks.join("") }));
+      store.set(STORE.done(defiSeed), JSON.stringify({
+        s: state.score, r: rank.name, m: state.marks.join(""), t: Date.now()
+      }));
       renderDefi();
       setMode("defi");
     }
@@ -1280,10 +1317,14 @@
 
   el.udToggle.hidden = !udUnlocked;
   if (udUnlocked) setUD(udOn, true);
+  purgeOldChallenges();
   renderSecrets();
   renderSeasons();
   renderDefi();
   setMode(urlSeed !== null ? "defi" : "enquete");
+
+  setInterval(refreshDay, 60000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refreshDay(); });
 
   /* Service worker : l'app reste jouable hors ligne. */
   if ("serviceWorker" in navigator) {

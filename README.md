@@ -100,11 +100,30 @@ python -m http.server 8080
 ## Accessibilité
 
 - Navigation clavier complète (<kbd>1</kbd>–<kbd>4</kbd> pour répondre, <kbd>Entrée</kbd> pour continuer).
+- **Le focus suit le jeu** : chaque changement d'écran et chaque nouvelle question
+  reprennent le focus sur leur titre, donc rien n'est annoncé dans le vide.
 - Les mots secrets se tapent aussi au clavier : le mur reste décoratif pour les
   lecteurs d'écran (`aria-hidden`) sans priver personne des easter eggs.
 - `prefers-reduced-motion` respecté : animations, miroir et inclinaison désactivés.
+- `prefers-contrast: more` respecté : couleurs secondaires et bordures renforcées.
 - Contrastes, `aria-live` sur les révélations, focus visibles.
 - Le son est **coupé par défaut** et ne démarre jamais sans clic.
+
+## Vérifications
+
+Aucune dépendance non plus pour les tests :
+
+```bash
+node tools/check-questions.js
+```
+
+Le script valide la structure de chaque question, les doublons, la couverture
+niveau × saison (au moins quatre questions par couple, sinon le filtre de saisons
+se replierait silencieusement) et la continuité des tables de rangs. Il tourne
+aussi à chaque `push` via GitHub Actions, avec la vérification de la syntaxe
+JavaScript, du manifeste PWA et de la présence des fichiers référencés.
+
+`tools/og-template.html` est le gabarit qui a servi à produire `assets/og.png`.
 
 ## Ajouter vos propres questions
 

@@ -1,0 +1,41 @@
+name: Vérifications
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verifier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Syntaxe JavaScript
+        run: |
+          node --check assets/app.js
+          node --check assets/questions.js
+          node --check sw.js
+          node --check tools/check-questions.js
+
+      - name: Manifeste PWA lisible
+        run: node -e "JSON.parse(require('fs').readFileSync('manifest.webmanifest','utf8')); console.log('manifeste valide')"
+
+      - name: Banque de questions et rangs
+        run: node tools/check-questions.js
+
+      - name: Ressources référencées présentes
+        run: |
+          node -e "
+          const fs = require('fs');
+          const html = fs.readFileSync('index.html', 'utf8');
+          const refs = [...html.matchAll(/(?:src|href)=\"(assets\/[^\"?]+)/g)].map(m => m[1]);
+          const manquants = [...new Set(refs)].filter(p => !fs.existsSync(p));
+          if (manquants.length) { console.error('Fichiers manquants : ' + manquants.join(', ')); process.exit(1); }
+          console.log(refs.length + ' références vérifiées');
+          "

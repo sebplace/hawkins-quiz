@@ -8,9 +8,21 @@
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#05060a">
 
-<meta property="og:title" content="Hawkins Quiz">
+<meta property="og:title" content="Hawkins Quiz — Testez votre niveau de fan">
 <meta property="og:description" content="Douze questions, trois dimensions et un Démogorgon chronométré. Survivrez-vous au Monde à l'Envers ?">
 <meta property="og:type" content="website">
+<meta property="og:url" content="https://sebplace.github.io/hawkins-quiz/">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:site_name" content="Hawkins Quiz">
+<meta property="og:image" content="https://sebplace.github.io/hawkins-quiz/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Hawkins Quiz — un Démogorgon dessiné au trait rouge à côté du titre en néon.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Hawkins Quiz — Testez votre niveau de fan">
+<meta name="twitter:description" content="Douze questions, trois dimensions et un Démogorgon chronométré.">
+<meta name="twitter:image" content="https://sebplace.github.io/hawkins-quiz/assets/og.png">
+<link rel="canonical" href="https://sebplace.github.io/hawkins-quiz/">
 
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#127851;</text></svg>">
 <link rel="manifest" href="manifest.webmanifest">
@@ -22,7 +34,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Rozha+One&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/styles.css?v=4">
+<link rel="stylesheet" href="assets/styles.css?v=5">
 </head>
 
 <body class="phase-0">
@@ -38,7 +50,7 @@
   <section class="screen is-active" id="screen-intro" aria-labelledby="brandTitle">
     <header class="brand">
       <p class="brand__kicker">Le test officieux du fan</p>
-      <h1 class="brand__title" id="brandTitle">
+      <h1 class="brand__title" id="brandTitle" tabindex="-1">
         <span class="brand__word">Hawkins</span>
         <span class="brand__word brand__word--sub">Quiz</span>
       </h1>
@@ -142,7 +154,7 @@
 
     <article class="card">
       <p class="card__level" id="qLevel">Niveau 1 — Sous-sol des Wheeler</p>
-      <h2 class="card__q" id="qText">…</h2>
+      <h2 class="card__q" id="qText" tabindex="-1">…</h2>
       <div class="choices" id="choices" role="group" aria-label="Réponses possibles"></div>
 
       <div class="spell" id="spell" hidden>
@@ -165,7 +177,7 @@
   <section class="screen" id="screen-result" aria-labelledby="rankName">
     <p class="result__kicker">Transmission terminée</p>
     <div class="wall" id="wallResult" aria-hidden="true"></div>
-    <h2 class="result__rank" id="rankName">…</h2>
+    <h2 class="result__rank" id="rankName" tabindex="-1">…</h2>
     <p class="result__line" id="rankLine">…</p>
     <p class="badge" id="badge" hidden></p>
     <p class="marks" id="marks" aria-label="Détail des réponses"></p>
@@ -197,7 +209,7 @@
   <p><a href="https://github.com/sebplace/hawkins-quiz">Code source</a> · MIT</p>
 </footer>
 
-<script src="assets/questions.js?v=4"></script>
-<script src="assets/app.js?v=4"></script>
+<script src="assets/questions.js?v=5"></script>
+<script src="assets/app.js?v=5"></script>
 </body>
 </html>
