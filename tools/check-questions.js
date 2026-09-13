@@ -110,6 +110,39 @@ function checkRanks(table, name, max) {
 checkRanks(RANKS, "RANKS", PER_LEVEL * 3);
 checkRanks(SURVIVAL_RANKS, "SURVIVAL_RANKS", 40);
 
+/* ---------- Couverture anglaise ---------- */
+/* L'anglais est facultatif, mais il ne doit jamais être à moitié livré :
+   soit la matrice niveau × saison tient, soit la bascule reste cachée. */
+let enGrid = null;
+try {
+  const enSrc = fs.readFileSync(path.join(__dirname, "..", "assets", "questions.en.js"), "utf8");
+  const QUESTIONS_EN = new Function("window", `${enSrc}; return QUESTIONS_EN;`)({});
+  enGrid = {};
+  let structure = 0;
+  QUESTIONS.forEach((q) => {
+    const e = QUESTIONS_EN[q.q];
+    if (!e) return;
+    if (!e.q || !e.fact) { errors.push(`EN incomplet : « ${q.q} »`); structure++; return; }
+    if (q.choices && (!e.choices || e.choices.length !== q.choices.length)) {
+      errors.push(`EN : nombre de choix différent pour « ${q.q} »`); structure++; return;
+    }
+    if (q.steps && (!e.steps || e.steps.length !== q.steps.length)) {
+      errors.push(`EN : nombre d'étapes différent pour « ${q.q} »`); structure++; return;
+    }
+    enGrid[q.level] = enGrid[q.level] || {};
+    enGrid[q.level][q.s] = (enGrid[q.level][q.s] || 0) + 1;
+  });
+  if (!structure) {
+    const trous = [];
+    LEVELS.forEach((l) => SEASONS.forEach((s) => {
+      if ((enGrid[l]?.[s] || 0) < PER_LEVEL) trous.push(`niveau ${l} / saison ${s}`);
+    }));
+    if (trous.length) warn.push(`anglais incomplet, bascule masquée (${trous.join(", ")})`);
+  }
+} catch (e) {
+  warn.push(`banque anglaise illisible : ${e.message}`);
+}
+
 /* ---------- Rapport ---------- */
 /* Répartition par type, pour l'affichage */
 const parType = {};
@@ -124,6 +157,11 @@ QUESTIONS.forEach((q) => {
 console.log(`Banque : ${QUESTIONS.length} questions`);
 console.log("  types : " + Object.entries(parType).map(([t, n]) => `${t}=${n}`).join("  "));
 LEVELS.forEach((l) => console.log(`  niveau ${l} : ${SEASONS.map((s) => `S${s}=${grid[l]?.[s] || 0}`).join("  ")}`));
+if (enGrid) {
+  const nbEn = Object.values(enGrid).reduce((a, o) => a + Object.values(o).reduce((x, y) => x + y, 0), 0);
+  console.log(`\nAnglais : ${nbEn} / ${QUESTIONS.length} questions traduites`);
+  LEVELS.forEach((l) => console.log(`  niveau ${l} : ${SEASONS.map((s) => `S${s}=${enGrid[l]?.[s] || 0}`).join("  ")}`));
+}
 warn.forEach((w) => console.log(`! ${w}`));
 
 if (errors.length) {

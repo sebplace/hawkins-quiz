@@ -75,6 +75,7 @@
     board: $("board"), dayStreak: $("dayStreak"),
     jokers: $("jokers"), joker5050: $("joker5050"), jokerTime: $("jokerTime"), jokerAv: $("jokerAv"),
     btnStats: $("btnStats"), btnStatsBack: $("btnStatsBack"), btnWipe: $("btnWipe"),
+    btnLang: $("btnLang"), langLabel: $("langLabel"),
     statsBody: $("statsBody"), statsTitle: $("statsTitle"), duelScore: $("duelScore"),
     hp: $("hp"), hpDie: $("hpDie"), hpFill: $("hpFill"), hpVal: $("hpVal"),
     toast: $("toast"), toastText: $("toastText"), toastAct: $("toastAct"), toastNo: $("toastNo")
@@ -85,9 +86,26 @@
   };
 
   /* Socle commun fourni par core.js : utilitaires, stockage, audio, mur, effets. */
-  const { util, store, sfx, wall, fx } = window.HQ;
+  const { util, store, sfx, wall, fx, i18n } = window.HQ;
   const { sleep, reduced, shuffle, mulberry32, shuffleWith, hashString, buzz } = util;
   const { nosebleed, rain, flash, flip, strike, celebrate, keepAwake } = fx;
+  const t = i18n.t;
+
+  /* Bascule une question dans la langue active. Sans traduction, on garde
+     le français : la question n'est simplement pas proposée en anglais. */
+  const EN = () => window.QUESTIONS_EN || {};
+  function localise(q) {
+    if (i18n.lang !== "en") return q;
+    const en = EN()[q.q];
+    if (!en) return q;
+    return {
+      ...q,
+      q: en.q || q.q,
+      fact: en.fact || q.fact,
+      ...(en.choices ? { choices: en.choices } : {}),
+      ...(en.steps ? { steps: en.steps } : {})
+    };
+  }
 
   function todayNumber() {
     const now = new Date();
@@ -142,7 +160,7 @@
     store.set(STORE.udOn, on ? "1" : "0");
     body.classList.toggle("ud", on);
     el.udToggle.setAttribute("aria-pressed", String(on));
-    el.udLabel.textContent = on ? "Monde à l'Envers : ouvert" : "Monde à l'Envers : scellé";
+    el.udLabel.textContent = t(on ? "Monde à l'Envers : ouvert" : "Monde à l'Envers : scellé");
     el.scoreIcon.textContent = on ? "🩸" : "🧇";
     renderRecord();
     if (on && !silent) { buzz([12, 40, 12]); flash("Le Monde à l'Envers vous attend"); }
@@ -174,7 +192,7 @@
   function resetCompose() {
     composing = [];
     el.wallCaption.classList.remove("is-composing");
-    el.wallCaption.textContent = "À vous de répondre.";
+    el.wallCaption.textContent = t("À vous de répondre.");
     wall.setTwinkle(true);
   }
 
@@ -189,7 +207,7 @@
     store.set(STORE.secrets, [...found].join(","));
     renderSecrets();
     el.wallCaption.classList.remove("is-composing");
-    el.wallCaption.textContent = hit.say;
+    el.wallCaption.textContent = t(hit.say);
     if (screens.intro.classList.contains("is-active")) {
       wall.spell(el.wall, hit.word, { on: 200, gap: 60 }).then(() => {
         wall.twinkle(el.wall);
@@ -243,7 +261,7 @@
     el.board.hidden = false;
     const unit = (mode === "survie" || mode === "campagne") ? "" : ` / ${TOTAL}`;
     el.board.innerHTML =
-      `<p class="board__title">Tableau d'honneur — ${MODE_LABEL[mode]}${ud ? " · Monde à l'Envers" : ""}</p>` +
+      `<p class="board__title">${t("Tableau d'honneur —")} ${t(MODE_LABEL[mode])}${ud ? ` · ${t("Monde à l'Envers")}` : ""}</p>` +
       b.map((e, i) => `<div class="board__row${i === highlight ? " is-new" : ""}">
           <i>${String(i + 1).padStart(2, "0")}</i>
           <b>${e.i}</b>
@@ -365,8 +383,8 @@
     if (!rec || !rec.n) { el.dayStreak.hidden = true; return; }
     el.dayStreak.hidden = false;
     el.dayStreak.textContent = rec.n === 1
-      ? "Série de défis : 1 jour"
-      : `Série de défis : ${rec.n} jours d'affilée`;
+      ? t("Série de défis : 1 jour")
+      : `${t("Série de défis :")} ${rec.n} ${t("jours d'affilée")}`;
   }
 
   function renderStats() {
@@ -389,46 +407,51 @@
       const w = n ? Math.max(10, Math.round((n / maxCount) * 100)) : 0;
       return `<div class="hist__row">
         <span class="hist__n">${i}</span>
-        <div class="hist__bar${n ? (i === bestScore ? " is-top" : "") : " is-empty"}" style="width:${n ? w : 4}%">${n || ""}</div>
+        <div class="hist__bar${n ? (i === bestScore ? " is-top" : "") : " is-empty"}" data-w="${n ? w : 4}">${n || ""}</div>
       </div>`;
     }).join("");
 
     const pct = s.asked ? Math.round((s.correct / s.asked) * 100) : 0;
     const allRanks = [...RANKS.map((r) => r.name), "Le Démogorgon", ...SURVIVAL_RANKS.map((r) => r.name)];
     const gallery = [...new Set(allRanks)].map((n) => `
-      <div class="rankchip${got.has(n) ? " is-got" : ""}"><b>${got.has(n) ? n : "? ? ?"}</b>${got.has(n) ? "" : "à débloquer"}</div>`).join("");
+      <div class="rankchip${got.has(n) ? " is-got" : ""}"><b>${got.has(n) ? t(n) : "? ? ?"}</b>${got.has(n) ? "" : t("à débloquer")}</div>`).join("");
 
     el.statsBody.innerHTML = `
       <div class="sblock">
-        <p class="sblock__title">En chiffres</p>
+        <p class="sblock__title">${t("En chiffres")}</p>
         <div class="stats">
-          <div class="stat"><b>${total}</b><span>Parties</span></div>
-          <div class="stat"><b>${pct}%</b><span>Bonnes réponses</span></div>
-          <div class="stat"><b>${s.perfect}</b><span>Sans-faute</span></div>
-          <div class="stat"><b>${s.survBest}</b><span>Record Survie</span></div>
+          <div class="stat"><b>${total}</b><span>${t("Parties")}</span></div>
+          <div class="stat"><b>${pct}%</b><span>${t("Bonnes réponses")}</span></div>
+          <div class="stat"><b>${s.perfect}</b><span>${t("Sans-faute")}</span></div>
+          <div class="stat"><b>${s.survBest}</b><span>${t("Record Survie")}</span></div>
         </div>
       </div>
       ${s.played ? `<div class="sblock">
-        <p class="sblock__title">Répartition des scores — ${s.played} partie${s.played > 1 ? "s" : ""}</p>
+        <p class="sblock__title">${t("Répartition des scores —")} ${s.played} ${t(s.played > 1 ? "parties" : "partie")}</p>
         <div class="hist">${hist}</div>
       </div>` : ""}
       <div class="sblock">
-        <p class="sblock__title">Défi du jour</p>
+        <p class="sblock__title">${t("Défi du jour")}</p>
         <div class="stats">
-          <div class="stat"><b>${s.defi}</b><span>Défis relevés</span></div>
-          <div class="stat"><b>${streak ? streak.n : 0}</b><span>Série en cours</span></div>
-          <div class="stat"><b>${streak ? (streak.best || streak.n) : 0}</b><span>Meilleure série</span></div>
-          <div class="stat"><b>${s.timeouts}</b><span>Rattrapé·e</span></div>
+          <div class="stat"><b>${s.defi}</b><span>${t("Défis relevés")}</span></div>
+          <div class="stat"><b>${streak ? streak.n : 0}</b><span>${t("Série en cours")}</span></div>
+          <div class="stat"><b>${streak ? (streak.best || streak.n) : 0}</b><span>${t("Meilleure série")}</span></div>
+          <div class="stat"><b>${s.timeouts}</b><span>${t("Rattrapé·e")}</span></div>
         </div>
       </div>
       <div class="sblock">
-        <p class="sblock__title">Galerie des rangs — ${got.size} / ${new Set(allRanks).size}</p>
+        <p class="sblock__title">${t("Galerie des rangs —")} ${got.size} / ${new Set(allRanks).size}</p>
         <div class="gallery">${gallery}</div>
       </div>`;
+
+    /* La CSP interdit les attributs style= : les largeurs sont posées après coup. */
+    el.statsBody.querySelectorAll(".hist__bar[data-w]").forEach((bar) => {
+      bar.style.width = `${bar.dataset.w}%`;
+    });
   }
 
   function wipeData() {
-    if (!window.confirm("Effacer scores, statistiques, secrets et défis enregistrés sur cet appareil ? C'est définitif.")) return;
+    if (!window.confirm(t("Effacer scores, statistiques, secrets et défis enregistrés sur cet appareil ? C'est définitif."))) return;
     try {
       Object.keys(localStorage).filter((k) => k.startsWith("hq.")).forEach((k) => localStorage.removeItem(k));
     } catch { /* ignoré */ }
@@ -458,12 +481,12 @@
         btn.setAttribute("aria-pressed", String(m === key));
       });
     const done = dailyDone();
-    el.startLabel.textContent =
+    el.startLabel.textContent = t(
       m === "survie" ? "Lancer la chasse"
       : m === "duel" ? "Lancer le duel"
       : m === "campagne" ? "Ouvrir la campagne"
       : m === "defi" ? (done ? "Défi déjà relevé" : "Relever le défi")
-      : "Entrer dans le sous-sol";
+      : "Entrer dans le sous-sol");
     el.btnStart.disabled = m === "defi" && !!done;
     renderRecord();
   }
@@ -495,12 +518,12 @@
 
   function renderDefi() {
     const done = dailyDone();
-    el.defiTitle.textContent = isReceived ? "Défi reçu" : `Défi du jour nº ${dayN}`;
+    el.defiTitle.textContent = isReceived ? t("Défi reçu") : `${t("Défi du jour nº")} ${dayN}`;
     el.defiSub.textContent = done
-      ? `Déjà relevé : ${done.s} / ${TOTAL} — ${done.r}`
+      ? `${t("Déjà relevé :")} ${done.s} / ${TOTAL} — ${t(done.r)}`
       : isReceived
-        ? "Quelqu'un vous a envoyé exactement ce paquet"
-        : "Les mêmes 12 questions pour tout le monde";
+        ? t("Quelqu'un vous a envoyé exactement ce paquet")
+        : t("Les mêmes 12 questions pour tout le monde");
     el.modeDefi.classList.toggle("mode--done", !!done);
   }
 
@@ -512,7 +535,7 @@
       shuffleWith(rng, pool).slice(0, PER_LEVEL).forEach((q) => {
         switch (q.type) {
           case "spell": deck.push({ ...q, correct: q.answer }); break;
-          case "vf": deck.push({ ...q, correct: q.answer ? VF[0] : VF[1], shuffled: VF.slice() }); break;
+          case "vf": deck.push({ ...q, correct: q.answer ? VF()[0] : VF()[1], shuffled: VF() }); break;
           case "chrono": deck.push({ ...q, correct: q.steps.join(" ⇢ "), shuffled: shuffleWith(rng, q.steps) }); break;
           default: deck.push({ ...q, correct: q.choices[0], shuffled: shuffleWith(rng, q.choices) });
         }
@@ -521,15 +544,16 @@
     return deck;
   }
 
-  const VF = ["Vrai", "Faux"];
+  const VF = () => [t("Vrai"), t("Faux")];
 
   /* Chaque type de question sait produire sa bonne réponse et son affichage. */
-  const prep = (q) => {
+  const prep = (src) => {
+    const q = localise(src);
     switch (q.type) {
       case "spell":
         return { ...q, correct: q.answer };
       case "vf":
-        return { ...q, correct: q.answer ? VF[0] : VF[1], shuffled: VF.slice() };
+        return { ...q, correct: q.answer ? VF()[0] : VF()[1], shuffled: VF() };
       case "chrono":
         return { ...q, correct: q.steps.join(" ⇢ "), shuffled: shuffle(q.steps) };
       default:                                   // qcm, intrus, draw
@@ -567,10 +591,21 @@
   const saveSeen = () => store.set(STORE.seen, JSON.stringify([...seen]));
 
   function poolFor(level) {
-    const all = QUESTIONS.filter((q) => level === null || q.level === level);
+    const all = QUESTIONS
+      .filter((q) => level === null || q.level === level)
+      .filter((q) => i18n.lang !== "en" || EN()[q.q]);     // en anglais, seulement le traduit
     const filtered = all.filter((q) => seasons.has(q.s));
     /* Si le filtre de saisons assèche un niveau, on rouvre tout pour ce niveau. */
     return filtered.length >= PER_LEVEL ? filtered : all;
+  }
+
+  /* L'anglais n'est proposé que si chaque couple niveau × saison tient encore
+     la route : mieux vaut pas de bouton qu'un quiz anglais bancal. */
+  function anglaisJouable() {
+    const dispo = QUESTIONS.filter((q) => EN()[q.q]);
+    return [1, 2, 3].every((lvl) =>
+      [1, 2, 3, 4, 5].every((s) =>
+        dispo.filter((q) => q.level === lvl && q.s === s).length >= PER_LEVEL));
   }
 
   function drawFresh(pool, n) {
@@ -637,7 +672,7 @@
     state.phase = p;
     body.classList.remove("phase-0", "phase-1", "phase-2", "phase-3");
     body.classList.add(`phase-${p}`);
-    el.phaseName.textContent = phaseLabels()[p].name;
+    el.phaseName.textContent = t(phaseLabels()[p].name);
     if (first) return;
     sfx.gate();
     buzz([18, 70, 18]);
@@ -890,7 +925,7 @@
     el.progress.textContent = sansFin()
       ? `Question ${state.i + 1}`
       : `Question ${state.i + 1} / ${TOTAL}`;
-    el.qLevel.textContent = phaseLabels()[state.phase].sub;
+    el.qLevel.textContent = t(phaseLabels()[state.phase].sub);
     el.qText.textContent = q.q;
     if (state.ud && !reduced) {
       el.qText.style.animation = "none";
@@ -1021,8 +1056,13 @@
     }
 
     const head = choice === null
-      ? "<b>Trop tard.</b> Le Démogorgon n'attend pas. "
-      : ok ? "<b>Exact.</b> " : `<b>Raté.</b> C'était «&nbsp;${q.correct}&nbsp;». `;    el.reveal.innerHTML = head + q.fact;
+      ? t("<b>Trop tard.</b> Le Démogorgon n'attend pas. ")
+      : ok ? t("<b>Exact.</b> ")
+      : i18n.lang === "en"
+        ? `<b>Missed.</b> It was &ldquo;&nbsp;${q.correct}&nbsp;&rdquo;. `
+        : `<b>Raté.</b> C'était «&nbsp;${q.correct}&nbsp;». `;
+
+    el.reveal.innerHTML = head + q.fact;
     el.reveal.classList.add("is-on");
 
     const fini = state.mode === "campagne"
@@ -1030,7 +1070,7 @@
       : (!sansFin() && state.i === TOTAL - 1);
     const last = state.over || fini;
     el.btnNext.hidden = false;
-    el.btnNext.textContent = last ? "Voir le verdict" : "Suivant";
+    el.btnNext.textContent = t(last ? "Voir le verdict" : "Suivant");
     el.btnNext.focus({ preventScroll: true });
   }
 
@@ -1136,13 +1176,13 @@
     lastUD = state.ud;
     lastMode = state.mode;
 
-    el.rankName.textContent = rank.name;
-    el.rankLine.textContent = rank.line;
+    el.rankName.textContent = t(rank.name);
+    el.rankLine.textContent = t(rank.line);
 
     el.badge.hidden = !state.ud;
-    el.badge.textContent = state.score >= (state.mode === "survie" ? 10 : 7)
+    el.badge.textContent = t(state.score >= (state.mode === "survie" ? 10 : 7)
       ? "Revenu du Monde à l'Envers"
-      : "Resté dans le Monde à l'Envers";
+      : "Resté dans le Monde à l'Envers");
 
     const avg = state.times.length
       ? (state.times.reduce((a, b) => a + b, 0) / state.times.length).toFixed(1)
@@ -1154,24 +1194,24 @@
 
     const unit = state.ud ? "Gouttes" : "Gaufres";
     el.stats.innerHTML = state.mode === "survie"
-      ? `<div class="stat"><b>${state.score}</b><span>Questions tenues</span></div>
-         <div class="stat"><b>${avg}s</b><span>Temps moyen</span></div>
-         <div class="stat"><b>${(durationFor(null, state.i)).toFixed(1)}s</b><span>Dernier chrono</span></div>
-         <div class="stat"><b>${state.timeouts}</b><span>Rattrapé·e</span></div>`
+      ? `<div class="stat"><b>${state.score}</b><span>${t("Questions tenues")}</span></div>
+         <div class="stat"><b>${avg}s</b><span>${t("Temps moyen")}</span></div>
+         <div class="stat"><b>${(durationFor(null, state.i)).toFixed(1)}s</b><span>${t("Dernier chrono")}</span></div>
+         <div class="stat"><b>${state.timeouts}</b><span>${t("Rattrapé·e")}</span></div>`
       : state.mode === "duel"
-      ? `<div class="stat"><b>${state.duel[0]}</b><span>Joueur 1</span></div>
-         <div class="stat"><b>${state.duel[1]}</b><span>Joueur 2</span></div>
-         <div class="stat"><b>${avg}s</b><span>Temps moyen</span></div>
-         <div class="stat"><b>${state.timeouts}</b><span>Dévoré·e par le chrono</span></div>`
+      ? `<div class="stat"><b>${state.duel[0]}</b><span>${t("Joueur 1")}</span></div>
+         <div class="stat"><b>${state.duel[1]}</b><span>${t("Joueur 2")}</span></div>
+         <div class="stat"><b>${avg}s</b><span>${t("Temps moyen")}</span></div>
+         <div class="stat"><b>${state.timeouts}</b><span>${t("Dévoré·e par le chrono")}</span></div>`
       : state.mode === "campagne"
-      ? `<div class="stat"><b>${state.i}</b><span>Questions tenues</span></div>
-         <div class="stat"><b>${Math.max(0, state.hp)}</b><span>Points de vie</span></div>
-         <div class="stat"><b>${state.score}</b><span>Bonnes réponses</span></div>
-         <div class="stat"><b>${avg}s</b><span>Temps moyen</span></div>`
-      : `<div class="stat"><b>${state.score}/${TOTAL}</b><span>${unit}</span></div>
-         <div class="stat"><b>${state.best}</b><span>Meilleure série</span></div>
-         <div class="stat"><b>${avg}s</b><span>Temps moyen</span></div>
-         <div class="stat"><b>${state.timeouts}</b><span>Dévoré·e par le chrono</span></div>`;
+      ? `<div class="stat"><b>${state.i}</b><span>${t("Questions tenues")}</span></div>
+         <div class="stat"><b>${Math.max(0, state.hp)}</b><span>${t("Points de vie")}</span></div>
+         <div class="stat"><b>${state.score}</b><span>${t("Bonnes réponses")}</span></div>
+         <div class="stat"><b>${avg}s</b><span>${t("Temps moyen")}</span></div>`
+      : `<div class="stat"><b>${state.score}/${TOTAL}</b><span>${t(unit)}</span></div>
+         <div class="stat"><b>${state.best}</b><span>${t("Meilleure série")}</span></div>
+         <div class="stat"><b>${avg}s</b><span>${t("Temps moyen")}</span></div>
+         <div class="stat"><b>${state.timeouts}</b><span>${t("Dévoré·e par le chrono")}</span></div>`;
 
     show("result");
     keepAwake(false);
@@ -1211,23 +1251,23 @@
       return acc;
     }, "");
     const head = lastMode === "survie"
-      ? `Hawkins Quiz — Survie : ${state.score} questions tenues ${lastUD ? "🙃" : "🧇"}`
+      ? `Hawkins Quiz — ${t("Survie")} : ${state.score} ${t("questions tenues")} ${lastUD ? "🙃" : "🧇"}`
       : lastMode === "duel"
-        ? `Hawkins Quiz — Duel : ${state.duel[0]} — ${state.duel[1]}`
+        ? `Hawkins Quiz — ${t("Duel")} : ${state.duel[0]} — ${state.duel[1]}`
       : lastMode === "defi"
-        ? `Hawkins Quiz — ${isReceived ? "Défi reçu" : `Défi nº ${dayN}`} : ${state.score}/${TOTAL} ${lastUD ? "🙃" : "🧇"}`
+        ? `Hawkins Quiz — ${isReceived ? t("Défi reçu") : `${t("Défi nº")} ${dayN}`} : ${state.score}/${TOTAL} ${lastUD ? "🙃" : "🧇"}`
         : `Hawkins Quiz — ${state.score}/${TOTAL} ${lastUD ? "🙃" : "🧇"}`;
-    const jok = state.used.size ? `  ·  ${state.used.size} joker${state.used.size > 1 ? "s" : ""}` : "";
+    const jok = state.used.size ? `  ·  ${state.used.size} ${t(state.used.size > 1 ? "jokers" : "joker")}` : "";
     const serie = lastMode === "defi" && !isReceived && currentStreak()?.n > 1
-      ? `Série : ${currentStreak().n} jours` : "";
+      ? `${t("Série :")} ${currentStreak().n} ${t("jours")}` : "";
     return [
       head,
-      `Rang : ${lastRank ? lastRank.name : "—"}${lastUD ? "  ·  Mode Monde à l'Envers" : ""}${jok}`,
+      `${t("Rang :")} ${lastRank ? t(lastRank.name) : "—"}${lastUD ? `  ·  ${t("Mode Monde à l'Envers")}` : ""}${jok}`,
       ...(serie ? [serie] : []),
       "",
       grid,
       "",
-      lastMode === "defi" ? "Même paquet, même chance. À vous :" : "Survivrez-vous au Monde à l'Envers ?",
+      t(lastMode === "defi" ? "Même paquet, même chance. À vous :" : "Survivrez-vous au Monde à l'Envers ?"),
       lastMode === "defi" ? challengeURL() : "https://sebplace.github.io/hawkins-quiz/"
     ].join("\n");
   }
@@ -1298,7 +1338,7 @@
       x.shadowBlur = 0;
     };
 
-    center("LE TEST OFFICIEUX DU FAN", 130, '500 26px "Space Grotesk", sans-serif', "#8c92a6");
+    center(t("LE TEST OFFICIEUX DU FAN"), 130, '500 26px "Space Grotesk", sans-serif', "#8c92a6");
 
     /* Titre, contour seul comme dans l'app */
     x.font = '400 140px "Rozha One", Georgia, serif';
@@ -1312,27 +1352,27 @@
     x.shadowBlur = 0;
 
     /* Bandeau du mode */
-    const modeTxt = lastMode === "survie" ? "MODE SURVIE"
-      : lastMode === "defi" ? (isReceived ? "DÉFI REÇU" : `DÉFI Nº ${dayN}`)
-      : "ENQUÊTE";
-    center(modeTxt + (lastUD ? "  ·  MONDE À L'ENVERS" : ""), 410,
+    const modeTxt = lastMode === "survie" ? t("MODE SURVIE")
+      : lastMode === "defi" ? (isReceived ? t("DÉFI REÇU") : `${t("DÉFI Nº")} ${dayN}`)
+      : t("ENQUÊTE");
+    center(modeTxt + (lastUD ? `  ·  ${t("MONDE À L'ENVERS")}` : ""), 410,
       '700 24px "Space Grotesk", sans-serif', pal.b);
 
     /* Score */
     const scoreTxt = lastMode === "survie" ? `${state.score}` : `${state.score}/${TOTAL}`;
     center(scoreTxt, 620, '400 190px "Rozha One", Georgia, serif', "#f3ece0", 30);
-    center(lastMode === "survie" ? "QUESTIONS TENUES" : (lastUD ? "GOUTTES" : "GAUFRES"), 672,
+    center(t(lastMode === "survie" ? "QUESTIONS TENUES" : (lastUD ? "GOUTTES" : "GAUFRES")), 672,
       '500 24px "Space Grotesk", sans-serif', "#8c92a6");
 
     /* Rang */
     x.font = '400 76px "Rozha One", Georgia, serif';
     x.lineWidth = 2.5; x.strokeStyle = pal.a;
     x.shadowColor = pal.a; x.shadowBlur = 26;
-    x.strokeText(lastRank ? lastRank.name : "—", W / 2, 790);
+    x.strokeText(lastRank ? t(lastRank.name) : "—", W / 2, 790);
     x.shadowBlur = 0;
 
     /* Phrase du rang, sur deux lignes au besoin */
-    const words = (lastRank ? lastRank.line : "").split(" ");
+    const words = (lastRank ? t(lastRank.line) : "").split(" ");
     const lines = [];
     let line = "";
     x.font = '400 30px "Space Grotesk", sans-serif';
@@ -1385,7 +1425,7 @@
     /* Pied */
     const foot = lastMode === "defi" ? challengeURL().replace(/^https?:\/\//, "") : "sebplace.github.io/hawkins-quiz";
     center(foot, H - 110, '500 26px "Space Grotesk", sans-serif', "#6a7188");
-    center("Projet de fan non officiel · sans affiliation avec Netflix", H - 64,
+    center(t("Projet de fan non officiel · sans affiliation avec Netflix"), H - 64,
       '400 20px "Space Grotesk", sans-serif', "#4d5468");
 
     return new Promise((res) => c.toBlob(res, "image/png"));
@@ -1396,29 +1436,29 @@
     if (cardBusy) return;
     cardBusy = true;
     el.btnCard.disabled = true;
-    el.btnCard.textContent = "Dessin en cours…";
-    let label = "Carte à partager";
+    el.btnCard.textContent = t("Dessin en cours…");
+    let label = t("Carte à partager");
     try {
       const blob = await buildCard();
       const file = new File([blob], "hawkins-quiz.png", { type: "image/png" });
       if (navigator.canShare?.({ files: [file] })) {
         /* On n'attend pas la feuille de partage : elle peut rester ouverte longtemps. */
         navigator.share({ files: [file], text: shareText() }).catch(() => { /* annulé */ });
-        label = "Partage ouvert";
+        label = t("Partage ouvert");
       } else {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url; a.download = "hawkins-quiz.png"; a.click();
         setTimeout(() => URL.revokeObjectURL(url), 4000);
-        label = "Image enregistrée";
+        label = t("Image enregistrée");
       }
     } catch {
-      label = "Échec du dessin";
+      label = t("Échec du dessin");
     }
     el.btnCard.textContent = label;
     el.btnCard.disabled = false;
     cardBusy = false;
-    setTimeout(() => { if (!cardBusy) el.btnCard.textContent = "Carte à partager"; }, 2400);
+    setTimeout(() => { if (!cardBusy) el.btnCard.textContent = t("Carte à partager"); }, 2400);
   }
 
   /* ==================================================================
@@ -1526,14 +1566,13 @@
   el.joker5050.addEventListener("click", joker5050);
   el.jokerTime.addEventListener("click", jokerTime);
   el.jokerAv.addEventListener("click", jokerAv);
-  el.btnStats.addEventListener("click", () => { sfx.click(); renderStats(); show("stats"); });
-  el.btnStatsBack.addEventListener("click", () => { sfx.click(); show("intro"); });
+  el.btnStats.addEventListener("click", () => { sfx.click(); renderStats(); show("stats"); });  el.btnStatsBack.addEventListener("click", () => { sfx.click(); show("intro"); });
   el.btnWipe.addEventListener("click", wipeData);
   el.seasons.forEach((b) => b.addEventListener("click", () => { sfx.click(); toggleSeason(Number(b.dataset.s)); }));
 
   el.btnSound.addEventListener("click", () => {
     const on = sfx.toggle();
-    el.soundLabel.textContent = on ? "Son : branché" : "Son : coupé";
+    el.soundLabel.textContent = t(on ? "Son : branché" : "Son : coupé");
     el.btnSound.setAttribute("aria-pressed", String(on));
   });
 
@@ -1541,17 +1580,17 @@
     const txt = shareText();
     const done = (label) => {
       el.btnShare.textContent = label;
-      setTimeout(() => (el.btnShare.textContent = "Copier mon score"), 2000);
+      setTimeout(() => (el.btnShare.textContent = t("Copier mon score")), 2000);
     };
     if (navigator.share) {
-      try { await navigator.share({ text: txt }); return done("Partagé !"); }
+      try { await navigator.share({ text: txt }); return done(t("Partagé !")); }
       catch { /* partage annulé : on retombe sur la copie */ }
     }
     try { await navigator.clipboard.writeText(txt); return done("Copié !"); }
     catch { /* repli historique */ }
     const ta = document.createElement("textarea");
     ta.value = txt; document.body.appendChild(ta); ta.select();
-    try { document.execCommand("copy"); done("Copié !"); } catch { done("Copie impossible"); }
+    try { document.execCommand("copy"); done(t("Copié !")); } catch { done(t("Copie impossible")); }
     ta.remove();
   });
 
@@ -1581,7 +1620,7 @@
           if (!sw || !navigator.serviceWorker.controller) return;   // première installation
           sw.addEventListener("statechange", () => {
             if (sw.state === "installed") {
-              toast("Une nouvelle version est prête.", "Recharger", () => location.reload());
+              toast(t("Une nouvelle version est prête."), t("Recharger"), () => location.reload());
             }
           });
         });
@@ -1594,7 +1633,7 @@
     e.preventDefault();
     if (store.get("hq.installAsked") === "1") return;
     setTimeout(() => {
-      toast("Installer le quiz sur votre écran d'accueil ?", "Installer", async () => {
+      toast(t("Installer le quiz sur votre écran d'accueil ?"), t("Installer"), async () => {
         store.set("hq.installAsked", "1");
         e.prompt();
         try { await e.userChoice; } catch { /* refusé */ }
@@ -1613,6 +1652,35 @@
   body.classList.remove("phase-0");
   body.classList.add("phase-1");
 
+  /* Bascule de langue. Le bouton ne s'affiche que si la banque anglaise
+     couvre tous les couples niveau × saison : pas de quiz à trous. */
+  /* Le nombre de questions est réinjecté après chaque bascule : la traduction
+     remplace l'innerHTML de la liste, donc l'ancien nœud disparaît. */
+  const majBanque = () => {
+    const n = $("bankSize");
+    if (n) n.textContent = QUESTIONS.length;
+  };
+  majBanque();
+  const enOK = anglaisJouable();
+  el.btnLang.hidden = !enOK;
+  if (!enOK && i18n.lang === "en") i18n.set("fr");
+  const majLangue = () => {
+    el.langLabel.textContent = i18n.lang === "en" ? "FR" : "EN";
+    el.btnLang.setAttribute("aria-label",
+      i18n.lang === "en" ? "Passer en français" : "Switch to English");
+  };
+  el.btnLang.addEventListener("click", () => {
+    sfx.click();
+    i18n.set(i18n.lang === "en" ? "fr" : "en");
+    majLangue();
+    renderSeasons(); renderDefi(); renderStreak(); renderSecrets();
+    majBanque();
+    setMode(state.mode);
+  });
+  if (i18n.lang === "en") i18n.appliquer();
+  majBanque();
+  majLangue();
+
   el.udToggle.hidden = !udUnlocked;
   if (udUnlocked) setUD(udOn, true);
   purgeOldChallenges();
@@ -1628,10 +1696,10 @@
   (async () => {
     await sleep(700);
     await wall.spell(el.wall, "HAWKINS", { on: 330, gap: 90 });
-    el.wallCaption.textContent = "Ne rentrez pas seul.";
+    el.wallCaption.textContent = t("Ne rentrez pas seul.");
     await sleep(600);
     await wall.spell(el.wall, "RUN", { on: 380, gap: 120 });
-    if (!composing.length) el.wallCaption.textContent = "À vous de répondre.";
+    if (!composing.length) el.wallCaption.textContent = t("À vous de répondre.");
     wall.twinkle(el.wall);
   })();
 })();

@@ -17,7 +17,7 @@ et se remplir de spores.
 |---|---|
 | **Mur d'alphabet interactif** | 26 ampoules qui épellent vraiment des mots, comme Joyce. Il annonce votre rang final — et sert de clavier pour vos initiales. |
 | **Chrono Démogorgon** | Pas une barre de progression : une créature dessinée en SVG qui traverse l'écran vers vous et ouvre sa fleur quand il ne reste presque plus rien. |
-| **Deux modes** | *Enquête* (12 questions, 3 dimensions) et *Survie* (jusqu'à la première erreur, chrono qui ne remonte jamais). |
+| **Cinq modes** | *Enquête* (12 questions, 3 dimensions), *Survie* (jusqu'à la première erreur, chrono qui ne remonte jamais), *Défi du jour*, *Duel local* (deux joueurs, un seul appareil) et *Campagne* (20 points de vie, un dé à vingt faces). |
 | **Tableau d'honneur** | Top 10 local par mode, initiales gravées en tapant trois lettres sur le mur. Comme au Palace Arcade. |
 | **Jokers** | Trois, un usage chacun&nbsp;: la *batte de Steve* écarte deux réponses, le *walkman de Max* gèle le Démogorgon, *Radio Cerebro* fait voter le Club AV. Désactivés en Défi du jour, pour que la compétition reste franche. |
 | **Série de jours** | Le Défi du jour compte les jours consécutifs. Un jour sauté, et la série tombe. |
@@ -32,13 +32,16 @@ et se remplir de spores.
 | **Sons synthétisés** | Arpèges, bips, sweeps et carillons générés à la volée en Web Audio. Aucun fichier audio. |
 | **Partage façon Wordle** | 🧇🧇💀🧇 │ 🧇🧇🧇⏳ │ 🧇💀🧇🧇 — copié en un clic (ou via le partage natif du téléphone). |
 | **Saignements de nez** | À partir de 3 bonnes réponses d'affilée. C'est le prix du talent. |
+| **Français et anglais** | Un bouton bascule toute l'app, questions comprises. La bascule n'apparaît que si la banque anglaise couvre chaque couple niveau × saison&nbsp;: une traduction partielle reste invisible plutôt que de livrer un quiz à trous. |
 
-**91 questions** en banque, 12 tirées à chaque partie, **sans jamais repasser deux
-fois la même tant que la banque n'est pas épuisée** : sept parties d'affilée sans
-un seul doublon. Un filtre permet de restreindre le tirage à une ou plusieurs saisons.
+**129 questions** en banque, couvrant **les cinq saisons**, 12 tirées à chaque partie,
+**sans jamais repasser deux fois la même tant que la banque n'est pas épuisée** : dix
+parties d'affilée sans un seul doublon. Un filtre permet de restreindre le tirage à une
+ou plusieurs saisons — décochez S5 pour éviter toute révélation.
 
-Dix questions ne proposent aucun choix multiple : **il faut épeler la réponse**,
-lettre par lettre, sur un mur d'alphabet miniature. Le décor devient la manette.
+Six formats cohabitent : choix multiple, **réponse à épeler** lettre par lettre sur un
+mur d'alphabet miniature, vrai/faux, chronologie à remettre dans l'ordre, l'intrus, et
+devinette d'objet dessiné en SVG. Le décor devient la manette.
 
 ## Le mur parle
 
@@ -86,9 +89,12 @@ assets/
   fonts.css       ← @font-face des polices auto-hébergées
   fonts/          ← woff2 latin et latin-ext, sous licence SIL OFL 1.1
   styles.css      ← thèmes par phase, mode Monde à l'Envers, mur, animations
-  core.js         ← socle : utilitaires, stockage, audio, mur, effets (window.HQ)
+  core.js         ← socle : utilitaires, stockage, audio, mur, effets, langue (window.HQ)
+  i18n.js         ← dictionnaires anglais de l'interface (window.HQ_I18N)
   app.js          ← moteur, écrans, jokers, défi du jour, statistiques, carte
+  art.js          ← objets dessinés en SVG pour les devinettes
   questions.js    ← banque de questions + rangs
+  questions.en.js ← traductions anglaises, indexées sur l'intitulé français
   icon-*.png og.png
 tools/
   check-questions.js  ← validateur de la banque
@@ -142,7 +148,7 @@ JavaScript, du manifeste PWA et de la présence des fichiers référencés.
 
 ## Ajouter vos propres questions
 
-Ouvrez `assets/questions.js` et ajoutez un objet. Deux formes sont acceptées.
+Ouvrez `assets/questions.js` et ajoutez un objet. Six formes sont acceptées.
 
 **Choix multiple** — **la bonne réponse est toujours la première du tableau
 `choices`** ; le mélange est fait à l'exécution.
@@ -150,7 +156,7 @@ Ouvrez `assets/questions.js` et ajoutez un objet. Deux formes sont acceptées.
 ```js
 {
   level: 2,                               // 1 = facile, 2 = moyen, 3 = difficile
-  s: 3,                                   // saison de référence (1 à 4)
+  s: 3,                                   // saison de référence (1 à 5)
   q: "Votre question ?",
   choices: ["La bonne", "Une fausse", "Une autre", "Encore une"],
   fact: "L'anecdote drôle affichée après la réponse."
@@ -161,15 +167,38 @@ Ouvrez `assets/questions.js` et ajoutez un objet. Deux formes sont acceptées.
 
 ```js
 {
-  level: 3, s: 1, type: "spell",
+  level: 3, s: 4, type: "spell",
   q: "Épelez le nom de famille de Vecna, celui de sa naissance.",
   answer: "CREEL",
   fact: "L'anecdote drôle affichée après la réponse."
 }
 ```
 
+Quatre autres types existent : `vf` (vrai/faux, avec `answer: true|false`), `chrono`
+(trois `steps` donnés **dans le bon ordre**, mélangés à l'affichage), `intrus`
+(comme un QCM, l'intrus en première position) et `draw` (un QCM accompagné d'une
+pièce dessinée, référencée par `art: "cle"` dans `assets/art.js`).
+
 Gardez au moins **quatre questions par couple niveau × saison**, sinon le filtre
 de saisons se rabat silencieusement sur l'ensemble de la banque pour ce niveau.
+
+### Traduire une question
+
+Ajoutez une entrée dans `assets/questions.en.js`, **indexée sur l'intitulé français
+exact** — c'est la clé, et le validateur garantit qu'elle est unique :
+
+```js
+"Votre question ?": {
+  q: "Your question?",
+  choices: ["The right one", "A wrong one", "Another", "One more"],
+  fact: "The funny note shown after the answer."
+}
+```
+
+L'ordre des `choices` doit suivre celui du français. Une question sans traduction
+n'est simplement pas proposée en anglais ; si cela creuse un trou dans la matrice
+niveau × saison, le bouton de langue disparaît de lui-même. `node tools/check-questions.js`
+rapporte la couverture anglaise à chaque exécution.
 
 ## Mentions
 

@@ -34,8 +34,8 @@
 <meta name="apple-mobile-web-app-title" content="Hawkins Quiz">
 <link rel="preload" href="assets/fonts/rozhaone-400-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/spacegrotesk-400-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="assets/fonts.css?v=10">
-<link rel="stylesheet" href="assets/styles.css?v=10">
+<link rel="stylesheet" href="assets/fonts.css?v=11">
+<link rel="stylesheet" href="assets/styles.css?v=11">
 </head>
 
 <body class="phase-0">
@@ -118,10 +118,13 @@
         <span id="soundLabel">Son : coupé</span>
       </button>
       <button class="btn btn--ghost" id="btnStats" type="button">Statistiques</button>
+      <button class="btn btn--ghost" id="btnLang" type="button" aria-label="Changer de langue">
+        <span id="langLabel">EN</span>
+      </button>
     </div>
 
     <ul class="rules">
-      <li class="only-enquete"><b>12 questions</b> tirées parmi 91, sans jamais repasser les mêmes</li>
+      <li class="only-enquete"><b>12 questions</b> tirées parmi <span id="bankSize">129</span>, sans jamais repasser les mêmes</li>
       <li class="only-enquete only-normal">Le décor s'assombrit à mesure que vous progressez&nbsp;: Hawkins → le labo → <i>le Monde à l'Envers</i></li>
       <li class="only-enquete only-normal">Le chrono raccourcit à chaque dimension. Zéro seconde = zéro gaufre</li>
       <li class="only-enquete only-ud">Trois strates, <b>aucune sortie</b>&nbsp;: Hawkins noyé → le labo mort → chez lui</li>
@@ -281,9 +284,11 @@
   <p><a href="https://github.com/sebplace/hawkins-quiz">Code source</a> · MIT</p>
 </footer>
 
-<script src="assets/core.js?v=10"></script>
-<script src="assets/art.js?v=10"></script>
-<script src="assets/questions.js?v=10"></script>
-<script src="assets/app.js?v=10"></script>
+<script src="assets/core.js?v=11"></script>
+<script src="assets/i18n.js?v=11"></script>
+<script src="assets/art.js?v=11"></script>
+<script src="assets/questions.js?v=11"></script>
+<script src="assets/questions.en.js?v=11"></script>
+<script src="assets/app.js?v=11"></script>
 </body>
 </html>

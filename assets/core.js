@@ -266,7 +266,7 @@
     function flash(msg) {
       const node = $("streak");
       if (!node) return;
-      node.textContent = msg;
+      node.textContent = (window.HQ && window.HQ.t) ? window.HQ.t(msg) : msg;
       node.classList.remove("is-on");
       void node.offsetWidth;
       node.classList.add("is-on");
@@ -323,5 +323,54 @@
     return { spores, nosebleed, rain, flash, flip, strike, celebrate, keepAwake };
   })();
 
-  window.HQ = { util, store, sfx, wall, fx };
+  /* ==================================================================
+     6. Langue — le français est la source, l'anglais une surcouche
+  ================================================================== */
+  const i18n = (() => {
+    let lang = store.get("hq.lang") === "en" ? "en" : "fr";
+    const dict = () => (window.HQ_I18N || {});
+
+    /* Traduit une chaîne produite par le script. La clé étant le texte
+       français, tout ce qui n'est pas traduit reste lisible. */
+    const t = (fr) => (lang === "en" ? (dict().S?.[fr] ?? fr) : fr);
+
+    /* Mémorise le HTML français au premier basculement, pour pouvoir revenir. */
+    const secours = new Map();
+    function appliquer() {
+      const { UI = {}, HTML = {} } = dict();
+      Object.entries(UI).forEach(([cle, en]) => {
+        if (en === null) return;
+        const [sel, attr] = cle.split("@");
+        const node = sel === "html" ? document.documentElement
+          : sel === "title" ? document.querySelector("title")
+          : document.querySelector(sel);
+        if (!node) return;
+        const k = `ui:${cle}`;
+        if (!secours.has(k)) secours.set(k, attr ? node.getAttribute(attr) : node.textContent);
+        const val = lang === "en" ? en : secours.get(k);
+        if (attr) node.setAttribute(attr, val); else node.textContent = val;
+      });
+      Object.entries(HTML).forEach(([sel, en]) => {
+        const node = document.querySelector(sel);
+        if (!node) return;
+        const k = `html:${sel}`;
+        if (!secours.has(k)) secours.set(k, node.innerHTML);
+        node.innerHTML = lang === "en" ? en : secours.get(k);
+      });
+    }
+
+    return {
+      t,
+      get lang() { return lang; },
+      set(l) {
+        lang = l === "en" ? "en" : "fr";
+        store.set("hq.lang", lang);
+        document.documentElement.lang = lang;
+        appliquer();
+      },
+      appliquer
+    };
+  })();
+
+  window.HQ = { util, store, sfx, wall, fx, i18n, t: i18n.t };
 })();
