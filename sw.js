@@ -4,18 +4,20 @@
    Les assets portent un `?v=` dans index.html : une nouvelle version du HTML
    demande donc automatiquement de nouvelles URL, jamais les anciennes. */
 
-const CACHE = "hawkins-quiz-v11";
+const CACHE = "hawkins-quiz-v12";
 const SHELL = [
   "./",
   "./index.html",
-  "./assets/fonts.css?v=11",
-  "./assets/styles.css?v=11",
-  "./assets/core.js?v=11",
-  "./assets/i18n.js?v=11",
-  "./assets/art.js?v=11",
-  "./assets/questions.js?v=11",
-  "./assets/questions.en.js?v=11",
-  "./assets/app.js?v=11",
+  "./assets/fonts.css?v=12",
+  "./assets/styles.css?v=12",
+  "./assets/core.js?v=12",
+  "./assets/i18n.js?v=12",
+  "./assets/i18n.nl.js?v=12",
+  "./assets/art.js?v=12",
+  "./assets/questions.js?v=12",
+  "./assets/questions.en.js?v=12",
+  "./assets/questions.nl.js?v=12",
+  "./assets/app.js?v=12",
   "./assets/fonts/rozhaone-400-latin.woff2",
   "./assets/fonts/spacegrotesk-400-latin.woff2",
   "./assets/fonts/spacegrotesk-500-latin.woff2",

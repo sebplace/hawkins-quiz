@@ -458,10 +458,16 @@ body.mode-duel .only-enquete, body.mode-duel .only-survie, body.mode-duel .only-
 body.mode-campagne .only-campagne { display: list-item; }
 body.mode-campagne .only-enquete, body.mode-campagne .only-survie,
 body.mode-campagne .only-defi, body.mode-campagne .only-duel { display: none; }
-.modes { grid-template-areas: "a b" "c c" "d d" "e e"; }
+.only-revanche { display: none; }
+body.mode-revanche .only-revanche { display: list-item; }
+body.mode-revanche .only-enquete, body.mode-revanche .only-survie,
+body.mode-revanche .only-defi, body.mode-revanche .only-duel,
+body.mode-revanche .only-campagne { display: none; }
+.modes { grid-template-areas: "a b" "c c" "d d" "e e" "f f"; }
 .mode--wide { grid-area: c; }
 #modeDuel { grid-area: d; }
 #modeCampagne { grid-area: e; }
+#modeRevanche { grid-area: f; }
 .mode--done { border-style: dashed; }
 .mode--done b { color: var(--accent-2) !important; }
 
@@ -537,6 +543,58 @@ body.mode-campagne .only-defi, body.mode-campagne .only-duel { display: none; }
 }
 .season.is-on { color: var(--fg); border-color: var(--accent); background: rgba(255, 255, 255, .06); }
 .season:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+
+/* ---------- Confort de jeu ---------- */
+.opts { width: min(620px, 100%); margin: 0 auto 1.6rem; }
+.opts__sum {
+  list-style: none; cursor: pointer; text-align: center;
+  font-size: .64rem; letter-spacing: .24em; text-transform: uppercase; color: var(--muted);
+  padding: .55rem; border: 1px dashed var(--line); border-radius: 10px;
+  transition: color .2s, border-color .2s;
+}
+.opts__sum::-webkit-details-marker { display: none; }
+.opts__sum::after { content: " ▾"; }
+.opts[open] .opts__sum::after { content: " ▴"; }
+.opts__sum:hover, .opts[open] .opts__sum { color: var(--fg); border-color: var(--accent); }
+.opts__sum:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+.opts__grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: .5rem; margin-top: .6rem;
+}
+.opt {
+  font: inherit; text-align: left; cursor: pointer; padding: .6rem .8rem;
+  min-height: 56px; border-radius: 10px;
+  border: 1px solid var(--line); background: rgba(255, 255, 255, .02); color: var(--muted);
+  transition: color .2s, border-color .2s, background .2s;
+}
+.opt b { display: block; color: var(--fg); font-size: .86rem; font-weight: 700; }
+.opt span { display: block; font-size: .7rem; line-height: 1.35; margin-top: .15rem; }
+.opt.is-on { border-color: var(--accent-2); background: rgba(255, 255, 255, .06); color: var(--fg); }
+.opt.is-on b::after { content: " ✓"; color: var(--accent-2); }
+.opt:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+
+/* ---------- Défi reçu par lien ---------- */
+.rival {
+  width: min(620px, 100%); margin: 0 auto 1rem; padding: .6rem .9rem;
+  border: 1px solid var(--accent-2); border-radius: 10px;
+  background: rgba(255, 255, 255, .03);
+  font-size: .82rem; text-align: center; color: var(--muted);
+}
+.rival b { color: var(--fg); font-variant-numeric: tabular-nums; }
+.rival__grid { display: block; margin-top: .35rem; letter-spacing: .12em; font-size: .95rem; }
+.rival--result { margin-top: .8rem; }
+
+/* Le mode Revanche n'existe que si le carnet d'erreurs est assez fourni. */
+.mode--revanche { border-style: dashed; }
+body.mode-revanche .seasons,
+body.mode-revanche .opts { opacity: .55; }
+body.mode-revanche .seasons { pointer-events: none; }
+
+/* ---------- Texte réservé aux lecteurs d'écran ---------- */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
 
 /* ---------- Questions à épeler ---------- */
 .spell__slots {
@@ -782,6 +840,36 @@ body.mode-campagne .only-defi, body.mode-campagne .only-duel { display: none; }
 .rankchip.is-got b { color: var(--accent-2); }
 .empty { color: var(--muted); font-size: .88rem; line-height: 1.6; text-align: center; }
 
+/* Barres de réussite par saison et par format */
+.sbar { display: grid; gap: .34rem; }
+.sbar__row {
+  display: grid; grid-template-columns: minmax(6rem, 9rem) 1fr auto;
+  gap: .6rem; align-items: center; font-size: .76rem;
+}
+.sbar__lbl { color: var(--muted); }
+.sbar__track {
+  height: 10px; border-radius: 5px; overflow: hidden;
+  background: rgba(255, 255, 255, .06);
+}
+.sbar__fill {
+  display: block; height: 100%; width: 0; border-radius: 5px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transition: width .6s var(--ease);
+}
+.sbar__val { color: var(--fg); font-variant-numeric: tabular-nums; }
+.sbar__val i { color: var(--muted); font-style: normal; font-size: .66rem; margin-left: .35rem; }
+.sbar__val i::before { content: "("; }
+.sbar__val i::after { content: ")"; }
+.sblock__note { margin: .8rem 0 .4rem; font-size: .78rem; color: var(--muted); }
+.sblock__note b { color: var(--accent-2); }
+.coriaces { margin: 0; padding-left: 1.3rem; display: grid; gap: .35rem; }
+.coriaces li { font-size: .76rem; color: var(--muted); line-height: 1.4; }
+.coriaces li span { color: var(--fg); }
+.coriaces li i {
+  font-style: normal; color: var(--blood-soft); margin-left: .4rem;
+  font-variant-numeric: tabular-nums;
+}
+
 .daystreak {
   text-align: center; margin: -.8rem auto 1.4rem; font-size: .7rem;
   letter-spacing: .2em; text-transform: uppercase; color: var(--accent-2);
@@ -988,3 +1076,49 @@ body.flipped #app { transform: rotate(180deg); }
   .rules { color: #cdd2e0; }
   .rules__hint { color: #b3bacb; }
 }
+
+/* ---------- Réglage : police lisible ---------- */
+/* Atkinson Hyperlegible remplace les deux familles d'origine, y compris le
+   titrage : le but est la lisibilité, pas le cachet typographique. */
+body.lisible,
+body.lisible .brand__title,
+body.lisible .card__q,
+body.lisible .choices--vf .choice,
+body.lisible .spell__slot,
+body.lisible .result__rank,
+body.lisible .relay__who,
+body.lisible .stats__title,
+body.lisible .stat b,
+body.lisible .rankchip b,
+body.lisible .initials__slot,
+body.lisible .board__row b,
+body.lisible .hp__die {
+  font-family: "Atkinson Hyperlegible", ui-sans-serif, system-ui, sans-serif;
+}
+body.lisible { letter-spacing: .012em; line-height: 1.65; }
+body.lisible .brand__title { -webkit-text-stroke-width: 1.1px; letter-spacing: .02em; }
+body.lisible .card__q { font-size: clamp(1.25rem, 4.4vw, 1.85rem); line-height: 1.35; }
+body.lisible .choice { font-size: 1.02rem; }
+body.lisible .reveal { font-size: .95rem; line-height: 1.7; }
+body.lisible .rules { font-size: .84rem; line-height: 1.75; }
+body.lisible .foot { font-size: .78rem; line-height: 1.7; }
+
+/* ---------- Réglage : mode soirée ---------- */
+/* Pensé pour un vidéoprojecteur ou un téléphone posé au milieu de la table :
+   la question et les réponses doivent se lire à deux mètres. */
+body.party .card { padding: clamp(1.4rem, 4vw, 2.6rem); }
+body.party .card__q { font-size: clamp(1.6rem, 5.6vw, 3rem); line-height: 1.22; }
+body.party .choice { min-height: 72px; font-size: clamp(1.05rem, 2.8vw, 1.5rem); }
+body.party .choices--vf .choice { font-size: clamp(1.5rem, 5vw, 2.4rem); }
+body.party .choice__key { font-size: 1rem; }
+body.party .reveal { font-size: clamp(1rem, 2.4vw, 1.35rem); line-height: 1.6; }
+body.party .hud { font-size: 1rem; }
+body.party .card__level { font-size: .8rem; }
+body.party .chrono__chip { font-size: 1.05rem; min-height: 60px; }
+body.party .spell__slot { width: clamp(34px, 9vw, 52px); height: clamp(46px, 12vw, 66px); font-size: clamp(1.4rem, 5vw, 2.2rem); }
+body.party .foot, body.party .rules__hint { display: none; }
+body.party #screen-quiz { width: 100%; }
+body.party #app { width: min(1040px, 100% - 2rem); }
+
+/* Les deux réglages se cumulent sans se contredire. */
+body.party.lisible .card__q { line-height: 1.3; }

@@ -8,9 +8,12 @@
   "use strict";
 
   /* Chaque pièce tient dans un viewBox 0 0 100 100 et n'utilise que
-     `currentColor`, pour suivre la palette de la phase en cours. */
+     `currentColor`, pour suivre la palette de la phase en cours.
+     Le dessin reste `aria-hidden` : le nommer trahirait la réponse. C'est
+     la note textuelle voisine (voir app.js) qui dit à un lecteur d'écran
+     s'il manque quelque chose, plutôt qu'un titre qui vend la mèche. */
   const wrap = (inner) =>
-    `<svg class="art__svg" viewBox="0 0 100 100" aria-hidden="true">${inner}</svg>`;
+    `<svg class="art__svg" viewBox="0 0 100 100" aria-hidden="true" focusable="false">${inner}</svg>`;
 
   const ART = {
     /* Gaufre : carré arrondi et sa grille */

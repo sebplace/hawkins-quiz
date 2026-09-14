@@ -324,22 +324,34 @@
   })();
 
   /* ==================================================================
-     6. Langue — le français est la source, l'anglais une surcouche
+     6. Langue — le français est la source, les autres des surcouches
   ================================================================== */
   const i18n = (() => {
-    let lang = store.get("hq.lang") === "en" ? "en" : "fr";
-    const dict = () => (window.HQ_I18N || {});
+    const SUPPORTED = ["fr", "en", "nl"];
+    const stored = store.get("hq.lang");
+    let lang = SUPPORTED.includes(stored) ? stored : "fr";
+    const all = () => (window.HQ_I18N || {});
+    const dict = () => all()[lang] || {};
 
     /* Traduit une chaîne produite par le script. La clé étant le texte
        français, tout ce qui n'est pas traduit reste lisible. */
-    const t = (fr) => (lang === "en" ? (dict().S?.[fr] ?? fr) : fr);
+    const t = (fr) => (lang === "fr" ? fr : (dict().S?.[fr] ?? fr));
 
-    /* Mémorise le HTML français au premier basculement, pour pouvoir revenir. */
+    /* Mémorise le français au premier basculement, pour pouvoir revenir.
+       Toutes les langues sont balayées : passer de l'anglais au néerlandais
+       ne doit pas laisser traîner une chaîne anglaise sur un sélecteur que
+       le néerlandais ne traduit pas. */
     const secours = new Map();
+    const clesUI = () => new Set(Object.values(all()).flatMap((d) => Object.keys(d.UI || {})));
+    const clesHTML = () => new Set(Object.values(all()).flatMap((d) => Object.keys(d.HTML || {})));
+
     function appliquer() {
       const { UI = {}, HTML = {} } = dict();
-      Object.entries(UI).forEach(([cle, en]) => {
-        if (en === null) return;
+      /* La langue du document est un état, pas une traduction : si on la
+         confiait au dictionnaire, la sauvegarde du français mémoriserait
+         « en » et le retour en arrière serait impossible. */
+      document.documentElement.lang = lang;
+      clesUI().forEach((cle) => {
         const [sel, attr] = cle.split("@");
         const node = sel === "html" ? document.documentElement
           : sel === "title" ? document.querySelector("title")
@@ -347,25 +359,27 @@
         if (!node) return;
         const k = `ui:${cle}`;
         if (!secours.has(k)) secours.set(k, attr ? node.getAttribute(attr) : node.textContent);
-        const val = lang === "en" ? en : secours.get(k);
+        const trad = UI[cle];
+        const val = (trad === undefined || trad === null) ? secours.get(k) : trad;
         if (attr) node.setAttribute(attr, val); else node.textContent = val;
       });
-      Object.entries(HTML).forEach(([sel, en]) => {
+      clesHTML().forEach((sel) => {
         const node = document.querySelector(sel);
         if (!node) return;
         const k = `html:${sel}`;
         if (!secours.has(k)) secours.set(k, node.innerHTML);
-        node.innerHTML = lang === "en" ? en : secours.get(k);
+        const trad = HTML[sel];
+        node.innerHTML = (trad === undefined || trad === null) ? secours.get(k) : trad;
       });
     }
 
     return {
       t,
+      SUPPORTED,
       get lang() { return lang; },
       set(l) {
-        lang = l === "en" ? "en" : "fr";
+        lang = SUPPORTED.includes(l) ? l : "fr";
         store.set("hq.lang", lang);
-        document.documentElement.lang = lang;
         appliquer();
       },
       appliquer

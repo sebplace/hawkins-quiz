@@ -1,16 +1,15 @@
 /* ==================================================================
-   Hawkins Quiz — internationalisation
+   Hawkins Quiz — internationalisation (anglais)
    Le français est la langue source : les clés SONT les chaînes
    françaises. Toute chaîne non traduite retombe donc naturellement
    sur le français plutôt que d'afficher une clé technique.
-   Chargé avant app.js, exposé sous window.HQ_I18N.
+   Chargé avant app.js, déposé dans window.HQ_I18N.en.
 ================================================================== */
 (() => {
   "use strict";
 
   /* Textes statiques de la page, repérés par sélecteur CSS. */
   const UI = {
-    "html@lang": "en",
     "title": "Hawkins Quiz — Test your fan credentials",
     'meta[name="description"]@content':
       "Twelve questions, three dimensions and a Demogorgon counting the seconds. Test your Stranger Things knowledge. Unofficial fan project.",
@@ -33,6 +32,17 @@
     "#modeDuel span": "Two players, one device, taking turns",
     "#modeCampagne b": "Campaign",
     "#modeCampagne span": "20 hit points, one twenty-sided die, no mercy",
+    "#modeRevanche b": "Rematch",
+
+    "#optsSum": "Comfort settings",
+    "#optRelax b": "No clock",
+    "#optRelax span": "The Demogorgon will wait. Off the leaderboard",
+    "#optParty b": "Party mode",
+    "#optParty span": "Big type, for playing out loud with a group",
+    "#optLisible b": "Readable font",
+    "#optLisible span": "Plainer, more spaced out, larger",
+    "#optNoart b": "No drawn riddles",
+    "#optNoart span": "Skips the questions that rely on a picture",
 
     ".only-enquete.only-normal:nth-of-type(2)": null,
 
@@ -67,7 +77,7 @@
   /* Blocs à remplacer en HTML (listes de règles, libellés composés). */
   const HTML = {
     ".rules": `
-      <li class="only-enquete"><b>12 questions</b> drawn from <span id="bankSize">129</span>, never repeating</li>
+      <li class="only-enquete"><b>12 questions</b> drawn from <span id="bankSize">140</span>, never repeating</li>
       <li class="only-enquete only-normal">The scenery darkens as you go&nbsp;: Hawkins → the lab → <i>the Upside Down</i></li>
       <li class="only-enquete only-normal">The clock shortens with every dimension. Zero seconds = zero waffles</li>
       <li class="only-enquete only-ud">Three strata, <b>no way out</b>&nbsp;: drowned Hawkins → the dead lab → his place</li>
@@ -81,6 +91,8 @@
       <li class="only-campagne"><b>20 hit points.</b> A mistake costs 4, 6 or 8 depending on the level</li>
       <li class="only-campagne">A <b>twenty-sided die</b> is rolled before each question. A 20 removes two answers, a 1 halves the clock</li>
       <li class="only-campagne">The campaign ends at zero hit points. Twenty questions survived and you walked out alive</li>
+      <li class="only-revanche"><b>Only the questions you got wrong</b>, drawn from your own mistake book</li>
+      <li class="only-revanche">A right answer strikes the question off the book. A wrong one leaves it there</li>
       <li class="only-keys">Keyboard&nbsp;: keys <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd></li>
       <li class="rules__hint">They say the wall answers, if you talk to it.</li>
       <li class="rules__hint">The bank covers all five seasons&nbsp;: untick S5 to avoid spoilers.</li>`,
@@ -349,8 +361,61 @@
     "Elle vous a entendu.": "She heard you.",
     "Quelqu'un s'en souvient, enfin.": "Someone remembers, at last.",
     "Un peu tard pour ça, non ?": "A little late for that, isn't it?",
-    "La faille est ouverte.": "The rift is open."
+    "La faille est ouverte.": "The rift is open.",
+
+    /* Confort de jeu, carnet d'erreurs, duel par lien et statistiques détaillées */
+    "Ouvrir le carnet": "Open the notebook",
+    "Revanche": "Rematch",
+    "Carnet d'erreurs": "Mistake book",
+    "Carnet d'erreurs :": "Mistake book:",
+    "questions à réparer": "questions to fix",
+    "question à réparer": "question to fix",
+    "Réparées": "Fixed",
+    "réparées": "fixed",
+    "RÉPARÉES": "FIXED",
+    "Reste au carnet": "Left in the book",
+    "À réparer": "To fix",
+    "Revanches": "Rematches",
+    "Duels": "Duels",
+    "Question": "Question",
+    "Le défi du jour garde son chrono": "The daily challenge keeps its clock",
+    "Défi lancé par": "Challenge set by",
+    "un inconnu": "a stranger",
+    "à battre": "to beat",
+    "votre adversaire": "your opponent",
+    "contre": "vs",
+    "Vous l'emportez.": "You take it.",
+    "La revanche attendra.": "The rematch will have to wait.",
+    "Match nul, à la gaufre près.": "Dead heat, down to the last waffle.",
+    "Même paquet, même score à battre. À vous :": "Same deck, same score to beat. Your turn:",
+    "REVANCHE": "REMATCH",
+    "CAMPAGNE": "CAMPAIGN",
+    "DUEL": "DUEL",
+
+    "Un dessin au trait accompagne la question ; il n'est pas nécessaire pour répondre.":
+      "A line drawing goes with this question; you don't need it to answer.",
+    "Cette question repose entièrement sur un dessin. Le réglage « Sans devinette dessinée » l'écarte du tirage.":
+      "This question relies entirely on a drawing. The \u201cNo drawn riddles\u201d setting keeps it out of the draw.",
+    "Le dessin est masqué : la question se répond au texte seul.":
+      "The drawing is hidden: this one can be answered from the text alone.",
+
+    "Réussite par saison": "Accuracy by season",
+    "Réussite par format": "Accuracy by format",
+    "Votre point faible :": "Your weak spot:",
+    "Ce qui vous résiste le plus :": "What resists you most:",
+    "Le dossier se remplira tout seul.": "The file will fill itself in.",
+    "Saison 1": "Season 1",
+    "Saison 2": "Season 2",
+    "Saison 3": "Season 3",
+    "Saison 4": "Season 4",
+    "Saison 5": "Season 5",
+    "Choix multiple": "Multiple choice",
+    "À épeler": "Spelling",
+    "Vrai ou faux": "True or false",
+    "Chronologie": "Timeline",
+    "L'intrus": "Odd one out",
+    "Devinette dessinée": "Drawn riddle"
   };
 
-  window.HQ_I18N = { UI, HTML, S };
+  window.HQ_I18N = Object.assign(window.HQ_I18N || {}, { en: { UI, HTML, S } });
 })();

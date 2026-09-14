@@ -19,8 +19,13 @@ jobs:
       - name: Syntaxe JavaScript
         run: |
           node --check assets/core.js
+          node --check assets/i18n.js
+          node --check assets/i18n.nl.js
+          node --check assets/art.js
           node --check assets/app.js
           node --check assets/questions.js
+          node --check assets/questions.en.js
+          node --check assets/questions.nl.js
           node --check sw.js
           node --check tools/check-questions.js
 
@@ -40,3 +45,44 @@ jobs:
           if (manquants.length) { console.error('Fichiers manquants : ' + manquants.join(', ')); process.exit(1); }
           console.log(refs.length + ' références vérifiées');
           "
+
+      - name: Coquille du service worker à jour
+        run: |
+          node -e "
+          const fs = require('fs');
+          const html = fs.readFileSync('index.html', 'utf8');
+          const sw = fs.readFileSync('sw.js', 'utf8');
+          const refs = [...html.matchAll(/(?:src|href)=\"(assets\/[^\"]+)\"/g)].map(m => m[1])
+            .filter(p => /\.(js|css)\?/.test(p));
+          const oublis = refs.filter(p => !sw.includes(p));
+          if (oublis.length) { console.error('Absents de sw.js : ' + oublis.join(', ')); process.exit(1); }
+          console.log(refs.length + ' ressources présentes dans la coquille');
+          "
+
+  fumee:
+    name: Test de fumée
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Playwright n'est pas une dépendance du projet : il est installé ici
+      # sans rien écrire dans le dépôt, le temps du test.
+      - name: Installer Playwright
+        run: |
+          npm install --no-save playwright@1.49.1
+          npx playwright install --with-deps chromium
+
+      - name: Servir le site
+        run: |
+          python3 -m http.server 8099 --bind 127.0.0.1 &
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8099/index.html > /dev/null && break
+            sleep 1
+          done
+
+      - name: Jouer une partie dans chaque mode
+        run: node tools/smoke.mjs http://127.0.0.1:8099

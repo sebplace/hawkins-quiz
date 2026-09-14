@@ -7,6 +7,12 @@ l'utilisation, la modification et la redistribution, y compris auto-hébergée.
 |---|---|---|---|
 | Rozha One | 400 | Indian Type Foundry | https://fonts.google.com/specimen/Rozha+One |
 | Space Grotesk | 400, 500, 700 | Florian Karsten | https://fonts.google.com/specimen/Space+Grotesk |
+| Atkinson Hyperlegible | 400, 700 | Braille Institute of America | https://fonts.google.com/specimen/Atkinson+Hyperlegible |
+
+Atkinson Hyperlegible ne sert qu'au réglage **« Police lisible »** de l'écran
+d'accueil : dessinée pour la basse vision, elle distingue nettement les caractères
+qui se confondent d'habitude (I, l, 1, O, 0). Tant que le réglage est inactif,
+aucun de ses fichiers n'est demandé.
 
 Les fichiers `.woff2` de ce dossier sont les sous-ensembles **latin** et **latin-ext**
 servis par l'API Google Fonts, récupérés une fois puis versionnés ici. Les règles

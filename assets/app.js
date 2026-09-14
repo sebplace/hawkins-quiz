@@ -36,11 +36,16 @@
 
   const BULB_COLORS = ["#ff2f45", "#ffc13b", "#3ddc84", "#3aa8ff", "#b14cff", "#ff7a2f"];
   const STORE = {
-    ud: "hq.ud", udOn: "hq.udOn", secrets: "hq.secrets", seen: "hq.seen", seasons: "hq.seasons",
-    stats: "hq.stats", streak: "hq.streak", ranks: "hq.ranks",
+    ud: "hq.ud", udOn: "hq.udOn", secrets: "hq.secrets", seen: "hq.seen2", seasons: "hq.seasons",
+    stats: "hq.stats", streak: "hq.streak", ranks: "hq.ranks", qstat: "hq.qstat", opts: "hq.opts",
     done: (seed) => `hq.done.${seed.toString(36)}`,
     board: (mode) => `hq.board.${mode}`
   };
+
+  /* Réglages de confort, tous facultatifs et tous persistés.
+     Lus plus bas, une fois `store` disponible. */
+  const OPT_DEFAULTS = { relax: false, party: false, lisible: false, noart: false };
+  const opts = Object.assign({}, OPT_DEFAULTS);
 
   /* Le défi du jour est numéroté depuis cette date. */
   const EPOCH = Date.UTC(2026, 0, 1);
@@ -57,7 +62,10 @@
     btnNext: $("btnNext"), btnReplay: $("btnReplay"), btnShare: $("btnShare"), btnCard: $("btnCard"),
     udToggle: $("udToggle"), udLabel: $("udLabel"), secrets: $("secrets"),
     modeEnquete: $("modeEnquete"), modeSurvie: $("modeSurvie"), modeDefi: $("modeDefi"),
-    modeDuel: $("modeDuel"), modeCampagne: $("modeCampagne"),
+    modeDuel: $("modeDuel"), modeCampagne: $("modeCampagne"), modeRevanche: $("modeRevanche"),
+    revancheSub: $("revancheSub"), rival: $("rival"), rivalResult: $("rivalResult"),
+    opts: $("opts"), optRelax: $("optRelax"), optParty: $("optParty"),
+    optLisible: $("optLisible"), optNoart: $("optNoart"), artNote: $("artNote"),
     relay: $("relay"), relayWho: $("relayWho"), relayScore: $("relayScore"), relayGo: $("relayGo"),
     defiTitle: $("defiTitle"), defiSub: $("defiSub"), record: $("record"),
     seasons: [...document.querySelectorAll(".season")],
@@ -90,20 +98,27 @@
   const { sleep, reduced, shuffle, mulberry32, shuffleWith, hashString, buzz } = util;
   const { nosebleed, rain, flash, flip, strike, celebrate, keepAwake } = fx;
   const t = i18n.t;
+  Object.assign(opts, store.json(STORE.opts, {}));
+
+  /* Banques de traduction, indexées par code de langue et par id de question.
+     Le français est la source : il n'a pas de banque. */
+  const LANG_BANKS = {
+    en: window.QUESTIONS_EN || {},
+    nl: window.QUESTIONS_NL || {}
+  };
+  const BANK = () => LANG_BANKS[i18n.lang] || {};
 
   /* Bascule une question dans la langue active. Sans traduction, on garde
-     le français : la question n'est simplement pas proposée en anglais. */
-  const EN = () => window.QUESTIONS_EN || {};
+     le français : la question n'est simplement pas proposée ailleurs. */
   function localise(q) {
-    if (i18n.lang !== "en") return q;
-    const en = EN()[q.q];
-    if (!en) return q;
+    const tr = BANK()[q.id];
+    if (!tr) return q;
     return {
       ...q,
-      q: en.q || q.q,
-      fact: en.fact || q.fact,
-      ...(en.choices ? { choices: en.choices } : {}),
-      ...(en.steps ? { steps: en.steps } : {})
+      q: tr.q || q.q,
+      fact: tr.fact || q.fact,
+      ...(tr.choices ? { choices: tr.choices } : {}),
+      ...(tr.steps ? { steps: tr.steps } : {})
     };
   }
 
@@ -238,7 +253,9 @@
   }
 
   function qualifies(score, mode, ud) {
-    if (score <= 0 || mode === "duel") return false;   // un duel n'a pas de score individuel
+    /* Un duel n'a pas de score individuel, une revanche n'a pas de longueur
+       fixe, et une partie sans chrono n'a pas les mêmes règles que les autres. */
+    if (score <= 0 || mode === "duel" || mode === "revanche" || state.relax) return false;
     const b = getBoard(mode, ud);
     return b.length < BOARD_SIZE || score > b[b.length - 1].s;
   }
@@ -253,7 +270,10 @@
     return cut.indexOf(entry);
   }
 
-  const MODE_LABEL = { enquete: "Enquête", survie: "Survie", defi: "Défi", duel: "Duel", campagne: "Campagne" };
+  const MODE_LABEL = {
+    enquete: "Enquête", survie: "Survie", defi: "Défi",
+    duel: "Duel", campagne: "Campagne", revanche: "Revanche"
+  };
 
   function renderBoard(mode, ud, highlight = -1) {
     const b = getBoard(mode, ud);
@@ -317,7 +337,9 @@
 
   function commitInitials() {
     if (ini.length < 3) return;
-    const rank = pushScore(ini.join(""), state.mode === "campagne" ? state.i : state.score, state.mode, state.ud);
+    const nom = ini.join("");
+    store.set("hq.ini", nom);
+    const rank = pushScore(nom, state.mode === "campagne" ? state.i : state.score, state.mode, state.ud);
     iniActive = false;
     el.initials.hidden = true;
     sfx.carve();
@@ -347,6 +369,10 @@
     } else if (state.mode === "survie") {
       s.surv++;
       s.survBest = Math.max(s.survBest, state.score);
+    } else if (state.mode === "revanche") {
+      /* Longueur variable : hors histogramme, mais on compte les réparations. */
+      s.rev = (s.rev || 0) + 1;
+      s.repares = (s.repares || 0) + state.score;
     } else {
       s.played++;
       s.dist[state.score] = (s.dist[state.score] || 0) + 1;
@@ -387,15 +413,32 @@
       : `${t("Série de défis :")} ${rec.n} ${t("jours d'affilée")}`;
   }
 
+  const SEASON_LABEL = { 1: "Saison 1", 2: "Saison 2", 3: "Saison 3", 4: "Saison 4", 5: "Saison 5" };
+  const TYPE_LABEL = {
+    qcm: "Choix multiple", spell: "À épeler", vf: "Vrai ou faux",
+    chrono: "Chronologie", intrus: "L'intrus", draw: "Devinette dessinée"
+  };
+
+  /* Barres de réussite : la CSP interdisant style=, la largeur est posée
+     après coup, comme pour l'histogramme. */
+  const barres = (entries, label) => entries.map(([cle, r]) => {
+    const pct = r.n ? Math.round((r.o / r.n) * 100) : 0;
+    return `<div class="sbar__row">
+      <span class="sbar__lbl">${t(label(cle))}</span>
+      <span class="sbar__track"><span class="sbar__fill" data-w="${pct}"></span></span>
+      <span class="sbar__val">${pct} %<i>${r.n}</i></span>
+    </div>`;
+  }).join("");
+
   function renderStats() {
     const s = getStats();
     const got = getRanks();
     const streak = currentStreak();
-    const total = s.played + s.surv;
+    const total = s.played + s.surv + (s.rev || 0);
 
     if (!total) {
-      el.statsBody.innerHTML = `<p class="empty">Aucune partie terminée pour l'instant.<br>
-        Le dossier se remplira tout seul.</p>`;
+      el.statsBody.innerHTML = `<p class="empty">${t("Aucune partie terminée pour l'instant.")}<br>
+        ${t("Le dossier se remplira tout seul.")}</p>`;
       return;
     }
 
@@ -416,6 +459,26 @@
     const gallery = [...new Set(allRanks)].map((n) => `
       <div class="rankchip${got.has(n) ? " is-got" : ""}"><b>${got.has(n) ? t(n) : "? ? ?"}</b>${got.has(n) ? "" : t("à débloquer")}</div>`).join("");
 
+    /* Ventilation : d'où viennent vraiment les erreurs */
+    const { bySeason, byType } = ventilation();
+    const saisons = [1, 2, 3, 4, 5].filter((n) => bySeason[n]?.n).map((n) => [n, bySeason[n]]);
+    const formats = Object.keys(TYPE_LABEL).filter((k) => byType[k]?.n).map((k) => [k, byType[k]]);
+
+    /* Point faible : il faut un minimum de matière pour oser le dire. */
+    const eligibles = saisons.filter(([, r]) => r.n >= 3);
+    const faible = eligibles.length >= 2
+      ? eligibles.reduce((a, b) => (a[1].o / a[1].n <= b[1].o / b[1].n ? a : b))
+      : null;
+
+    /* Difficulté mesurée : vos cinq questions les plus coriaces. */
+    const coriaces = QUESTIONS
+      .map((q) => ({ q, r: qstat[q.id] }))
+      .filter(({ r }) => r && r.n >= 2 && r.o < r.n)
+      .sort((a, b) => (a.r.o / a.r.n) - (b.r.o / b.r.n) || b.r.n - a.r.n)
+      .slice(0, 5);
+
+    const restant = idsRates().length;
+
     el.statsBody.innerHTML = `
       <div class="sblock">
         <p class="sblock__title">${t("En chiffres")}</p>
@@ -430,13 +493,34 @@
         <p class="sblock__title">${t("Répartition des scores —")} ${s.played} ${t(s.played > 1 ? "parties" : "partie")}</p>
         <div class="hist">${hist}</div>
       </div>` : ""}
+      ${saisons.length ? `<div class="sblock">
+        <p class="sblock__title">${t("Réussite par saison")}</p>
+        <div class="sbar">${barres(saisons, (n) => SEASON_LABEL[n])}</div>
+        ${faible ? `<p class="sblock__note">${t("Votre point faible :")} <b>${t(SEASON_LABEL[faible[0]])}</b>.</p>` : ""}
+      </div>` : ""}
+      ${formats.length ? `<div class="sblock">
+        <p class="sblock__title">${t("Réussite par format")}</p>
+        <div class="sbar">${barres(formats, (k) => TYPE_LABEL[k])}</div>
+      </div>` : ""}
+      <div class="sblock">
+        <p class="sblock__title">${t("Carnet d'erreurs")}</p>
+        <div class="stats">
+          <div class="stat"><b>${restant}</b><span>${t("À réparer")}</span></div>
+          <div class="stat"><b>${s.repares || 0}</b><span>${t("Réparées")}</span></div>
+          <div class="stat"><b>${s.rev || 0}</b><span>${t("Revanches")}</span></div>
+          <div class="stat"><b>${s.timeouts}</b><span>${t("Rattrapé·e")}</span></div>
+        </div>
+        ${coriaces.length ? `<p class="sblock__note">${t("Ce qui vous résiste le plus :")}</p>
+        <ol class="coriaces">${coriaces.map(({ q, r }) =>
+          `<li><span>${localise(q).q}</span><i>${Math.round((r.o / r.n) * 100)} %</i></li>`).join("")}</ol>` : ""}
+      </div>
       <div class="sblock">
         <p class="sblock__title">${t("Défi du jour")}</p>
         <div class="stats">
           <div class="stat"><b>${s.defi}</b><span>${t("Défis relevés")}</span></div>
           <div class="stat"><b>${streak ? streak.n : 0}</b><span>${t("Série en cours")}</span></div>
           <div class="stat"><b>${streak ? (streak.best || streak.n) : 0}</b><span>${t("Meilleure série")}</span></div>
-          <div class="stat"><b>${s.timeouts}</b><span>${t("Rattrapé·e")}</span></div>
+          <div class="stat"><b>${s.duel || 0}</b><span>${t("Duels")}</span></div>
         </div>
       </div>
       <div class="sblock">
@@ -445,7 +529,7 @@
       </div>`;
 
     /* La CSP interdit les attributs style= : les largeurs sont posées après coup. */
-    el.statsBody.querySelectorAll(".hist__bar[data-w]").forEach((bar) => {
+    el.statsBody.querySelectorAll("[data-w]").forEach((bar) => {
       bar.style.width = `${bar.dataset.w}%`;
     });
   }
@@ -467,15 +551,16 @@
     mode: "enquete", deck: [], i: 0, score: 0, streak: 0, best: 0,
     timeouts: 0, times: [], marks: [], locked: true, ud: false, over: false,
     used: new Set(), frozen: false, frozenLeft: 0, duel: [0, 0], hp: HP_MAX, roll: 0,
-    phase: 0, raf: 0, deadline: 0, duration: 0, lastTick: -1, close: false
+    phase: 0, raf: 0, deadline: 0, duration: 0, lastTick: -1, close: false,
+    total: TOTAL, relax: false, start: 0
   };
 
   function setMode(m) {
     mode = m;
-    body.classList.remove("mode-survie", "mode-defi", "mode-duel", "mode-campagne");
+    body.classList.remove("mode-survie", "mode-defi", "mode-duel", "mode-campagne", "mode-revanche");
     if (m !== "enquete") body.classList.add(`mode-${m}`);
     [["enquete", el.modeEnquete], ["survie", el.modeSurvie], ["defi", el.modeDefi],
-      ["duel", el.modeDuel], ["campagne", el.modeCampagne]]
+      ["duel", el.modeDuel], ["campagne", el.modeCampagne], ["revanche", el.modeRevanche]]
       .forEach(([key, btn]) => {
         btn.classList.toggle("is-on", m === key);
         btn.setAttribute("aria-pressed", String(m === key));
@@ -485,6 +570,7 @@
       m === "survie" ? "Lancer la chasse"
       : m === "duel" ? "Lancer le duel"
       : m === "campagne" ? "Ouvrir la campagne"
+      : m === "revanche" ? "Ouvrir le carnet"
       : m === "defi" ? (done ? "Défi déjà relevé" : "Relever le défi")
       : "Entrer dans le sous-sol");
     el.btnStart.disabled = m === "defi" && !!done;
@@ -527,37 +613,70 @@
     el.modeDefi.classList.toggle("mode--done", !!done);
   }
 
+  /* --- Duel par lien : le résultat de l'adversaire voyage dans l'URL --- */
+  /* Rien n'est envoyé nulle part : le score tient dans douze caractères,
+     1 bonne réponse, 2 temps écoulé, 0 erreur. */
+  const MARK_CODE = { "🧇": "1", "🩸": "1", "⏳": "2" };
+  const MARK_GLYPH = { 1: "🧇", 2: "⏳", 0: "💀" };
+  const codeMarks = () => state.marks.slice(-24).map((m) => MARK_CODE[m] || "0").join("");
+
+  const rival = (() => {
+    if (urlSeed === null) return null;
+    const p = new URLSearchParams(location.search);
+    const marks = (p.get("r") || "").replace(/[^012]/g, "").slice(0, 24);
+    if (marks.length < 4) return null;
+    const nom = (p.get("n") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 3);
+    return { marks, score: [...marks].filter((c) => c === "1").length, nom };
+  })();
+
+  function renderRival() {
+    if (!rival) { el.rival.hidden = true; return; }
+    el.rival.hidden = false;
+    el.rival.innerHTML = `${t("Défi lancé par")} <b>${rival.nom || t("un inconnu")}</b> — `
+      + `<b>${rival.score} / ${rival.marks.length}</b> ${t("à battre")} `
+      + `<span class="rival__grid">${[...rival.marks].map((c) => MARK_GLYPH[c]).join("")}</span>`;
+  }
+
+  function renderRivalResult() {
+    const montrer = rival && state.mode === "defi";
+    el.rivalResult.hidden = !montrer;
+    if (!montrer) return;
+    const nom = rival.nom || t("votre adversaire");
+    const verdict = state.score > rival.score ? t("Vous l'emportez.")
+      : state.score < rival.score ? t("La revanche attendra.")
+      : t("Match nul, à la gaufre près.");
+    el.rivalResult.innerHTML = `<b>${state.score}</b> — <b>${rival.score}</b> ${t("contre")} ${nom}. ${verdict}`;
+  }
+
   function buildSeededDeck(seed) {
     const rng = mulberry32(seed);
     const deck = [];
     [1, 2, 3].forEach((lvl) => {
-      const pool = QUESTIONS.filter((q) => q.level === lvl);
-      shuffleWith(rng, pool).slice(0, PER_LEVEL).forEach((q) => {
-        switch (q.type) {
-          case "spell": deck.push({ ...q, correct: q.answer }); break;
-          case "vf": deck.push({ ...q, correct: q.answer ? VF()[0] : VF()[1], shuffled: VF() }); break;
-          case "chrono": deck.push({ ...q, correct: q.steps.join(" ⇢ "), shuffled: shuffleWith(rng, q.steps) }); break;
-          default: deck.push({ ...q, correct: q.choices[0], shuffled: shuffleWith(rng, q.choices) });
-        }
-      });
+      /* Le paquet du jour doit être identique partout : on ne le filtre ni par
+         saison, ni par langue, ni par réglage. Seules les questions qui ne
+         tiennent que par leur dessin en sont écartées, une fois pour toutes. */
+      const pool = QUESTIONS.filter((q) => q.level === lvl && !q.needsArt);
+      shuffleWith(rng, pool).slice(0, PER_LEVEL).forEach((q) => deck.push(prep(q, rng)));
     });
     return deck;
   }
 
   const VF = () => [t("Vrai"), t("Faux")];
 
-  /* Chaque type de question sait produire sa bonne réponse et son affichage. */
-  const prep = (src) => {
+  /* Chaque type de question sait produire sa bonne réponse et son affichage.
+     Un générateur peut être imposé : le défi du jour mélange à la graine. */
+  const prep = (src, rng) => {
     const q = localise(src);
+    const mix = (arr) => (rng ? shuffleWith(rng, arr) : shuffle(arr));
     switch (q.type) {
       case "spell":
         return { ...q, correct: q.answer };
       case "vf":
         return { ...q, correct: q.answer ? VF()[0] : VF()[1], shuffled: VF() };
       case "chrono":
-        return { ...q, correct: q.steps.join(" ⇢ "), shuffled: shuffle(q.steps) };
+        return { ...q, correct: q.steps.join(" ⇢ "), shuffled: mix(q.steps) };
       default:                                   // qcm, intrus, draw
-        return { ...q, correct: q.choices[0], shuffled: shuffle(q.choices) };
+        return { ...q, correct: q.choices[0], shuffled: mix(q.choices) };
     }
   };
 
@@ -581,28 +700,86 @@
     renderSeasons();
   }
 
+  /* --- Confort de jeu : quatre réglages, tous facultatifs --- */
+  const OPT_BTN = () => ({
+    relax: el.optRelax, party: el.optParty, lisible: el.optLisible, noart: el.optNoart
+  });
+
+  function appliquerOpts() {
+    body.classList.toggle("party", opts.party);
+    body.classList.toggle("lisible", opts.lisible);
+    Object.entries(OPT_BTN()).forEach(([cle, btn]) => {
+      if (!btn) return;
+      btn.classList.toggle("is-on", opts[cle]);
+      btn.setAttribute("aria-pressed", String(opts[cle]));
+    });
+  }
+
+  function toggleOpt(cle) {
+    opts[cle] = !opts[cle];
+    store.set(STORE.opts, JSON.stringify(opts));
+    appliquerOpts();
+    if (cle === "noart" || cle === "relax") renderRevanche();
+    if (cle === "relax" && opts.relax && mode === "defi") flash("Le défi du jour garde son chrono");
+  }
+
+  /* --- Carnet d'erreurs : une question ratée y reste jusqu'à réparation --- */
+  let qstat = store.json(STORE.qstat, {});
+  const saveQStat = () => store.set(STORE.qstat, JSON.stringify(qstat));
+
+  function noterReponse(q, ok) {
+    if (!q || !q.id) return;
+    const rec = qstat[q.id] || { o: 0, n: 0, w: 0 };
+    rec.n++;
+    if (ok) { rec.o++; rec.w = 0; } else rec.w = 1;
+    qstat[q.id] = rec;
+    saveQStat();
+  }
+
+  const idsRates = () => QUESTIONS
+    .filter((q) => qstat[q.id]?.w && jouable(q) && (i18n.lang === "fr" || BANK()[q.id]))
+    .map((q) => q.id);
+
+  /* Statistiques dérivées du carnet : une seule source, trois lectures. */
+  function ventilation() {
+    const bySeason = {}, byType = {}, byLevel = {};
+    const add = (m, k, r) => {
+      m[k] = m[k] || { o: 0, n: 0 };
+      m[k].o += r.o; m[k].n += r.n;
+    };
+    QUESTIONS.forEach((q) => {
+      const r = qstat[q.id];
+      if (!r || !r.n) return;
+      add(bySeason, q.s, r); add(byType, q.type || "qcm", r); add(byLevel, q.level, r);
+    });
+    return { bySeason, byType, byLevel };
+  }
+
   /* --- Anti-répétition : on retient ce qui a déjà été posé --- */
-  const qid = (q) => {
-    let h = 0;
-    for (let i = 0; i < q.q.length; i++) h = (Math.imul(31, h) + q.q.charCodeAt(i)) | 0;
-    return h;
-  };
+  const qid = (q) => q.id;
   let seen = new Set(store.json(STORE.seen, []));
   const saveSeen = () => store.set(STORE.seen, JSON.stringify([...seen]));
+
+  /* Une question dont le dessin EST la question n'a pas d'équivalent
+     textuel : on la retire dès que le joueur demande du texte seul. */
+  const jouable = (q) => !(opts.noart && q.needsArt);
 
   function poolFor(level) {
     const all = QUESTIONS
       .filter((q) => level === null || q.level === level)
-      .filter((q) => i18n.lang !== "en" || EN()[q.q]);     // en anglais, seulement le traduit
+      .filter(jouable)
+      .filter((q) => i18n.lang === "fr" || BANK()[q.id]);     // hors français, seulement le traduit
     const filtered = all.filter((q) => seasons.has(q.s));
     /* Si le filtre de saisons assèche un niveau, on rouvre tout pour ce niveau. */
     return filtered.length >= PER_LEVEL ? filtered : all;
   }
 
-  /* L'anglais n'est proposé que si chaque couple niveau × saison tient encore
-     la route : mieux vaut pas de bouton qu'un quiz anglais bancal. */
-  function anglaisJouable() {
-    const dispo = QUESTIONS.filter((q) => EN()[q.q]);
+  /* Une langue n'est proposée que si chaque couple niveau × saison tient
+     encore la route : mieux vaut pas de bouton qu'un quiz bancal. */
+  function langueJouable(code) {
+    if (code === "fr") return true;
+    const bank = LANG_BANKS[code] || {};
+    const dispo = QUESTIONS.filter((q) => bank[q.id]);
     return [1, 2, 3].every((lvl) =>
       [1, 2, 3, 4, 5].every((s) =>
         dispo.filter((q) => q.level === lvl && q.s === s).length >= PER_LEVEL));
@@ -621,13 +798,33 @@
 
   function buildDeck() {
     if (mode === "defi") return buildSeededDeck(defiSeed);
+    if (mode === "revanche") return buildRevancheDeck();
     if (mode === "survie") {
-      return shuffle(poolFor(null)).map(prep);
+      return shuffle(poolFor(null)).map((q) => prep(q));
     }
     const deck = [];
     [1, 2, 3].forEach((lvl) => drawFresh(poolFor(lvl), PER_LEVEL).forEach((q) => deck.push(prep(q))));
     saveSeen();
     return deck;
+  }
+
+  /* --- Revanche : le paquet est votre propre carnet d'erreurs --- */
+  const REVANCHE_MIN = 4;
+
+  function buildRevancheDeck() {
+    const rates = new Set(idsRates());
+    return shuffle(QUESTIONS.filter((q) => rates.has(q.id))).slice(0, TOTAL).map((q) => prep(q));
+  }
+
+  function renderRevanche() {
+    const n = idsRates().length;
+    const assez = n >= REVANCHE_MIN;
+    el.modeRevanche.hidden = !assez;
+    if (!assez) {
+      if (mode === "revanche") setMode("enquete");
+      return;
+    }
+    el.revancheSub.textContent = `${t("Carnet d'erreurs :")} ${n} ${t(n > 1 ? "questions à réparer" : "question à réparer")}`;
   }
 
   /* --- Duel local : deux joueurs, un appareil, chacun son tour --- */
@@ -653,7 +850,7 @@
   /* En Survie, on recycle le paquet indéfiniment. */
   function currentQuestion() {
     if (state.i < state.deck.length) return state.deck[state.i];
-    state.deck = state.deck.concat(shuffle(poolFor(null)).map(prep));
+    state.deck = state.deck.concat(shuffle(poolFor(null)).map((q) => prep(q)));
     return state.deck[state.i];
   }
 
@@ -696,11 +893,22 @@
 
   function startTimer(seconds) {
     cancelAnimationFrame(state.raf);
+    state.start = performance.now();
+    state.frozen = false;
+
+    /* Sans chrono, le Démogorgon reste dans le couloir : la barre disparaît
+       plutôt que de rester figée à cent pour cent, ce qui serait un mensonge. */
+    if (state.relax) {
+      el.hunt.hidden = true;
+      state.duration = 0;
+      state.deadline = Infinity;
+      return;
+    }
+    el.hunt.hidden = false;
     state.duration = seconds * 1000;
-    state.deadline = performance.now() + state.duration;
+    state.deadline = state.start + state.duration;
     state.lastTick = -1;
     state.close = false;
-    state.frozen = false;
     el.hunt.classList.remove("is-close", "is-caught", "is-frozen");
     el.demo.style.setProperty("--p", "0");
 
@@ -736,9 +944,9 @@
      7 bis. Jokers — un seul usage chacun, interdits en mode Défi
   ================================================================== */
   const JOKERS = [
-    { id: "5050", btn: () => el.joker5050 },
-    { id: "time", btn: () => el.jokerTime },
-    { id: "av", btn: () => el.jokerAv }
+    { id: "5050", btn: () => $("joker5050") },
+    { id: "time", btn: () => $("jokerTime") },
+    { id: "av", btn: () => $("jokerAv") }
   ];
 
   function renderJokers() {
@@ -748,8 +956,10 @@
     const q = state.deck.length ? currentQuestion() : null;
     JOKERS.forEach(({ id, btn }) => {
       const b = btn();
+      if (!b) return;
       const used = state.used.has(id);
-      const impossible = id === "5050" && q && ["spell", "chrono", "vf"].includes(q.type);
+      const impossible = (id === "5050" && q && ["spell", "chrono", "vf"].includes(q.type))
+        || (id === "time" && state.relax);
       b.classList.toggle("is-used", used);
       b.disabled = used || impossible || state.locked;
       b.setAttribute("aria-disabled", String(b.disabled));
@@ -923,8 +1133,8 @@
     setPhase(phaseFor(q, state.i));
 
     el.progress.textContent = sansFin()
-      ? `Question ${state.i + 1}`
-      : `Question ${state.i + 1} / ${TOTAL}`;
+      ? `${t("Question")} ${state.i + 1}`
+      : `${t("Question")} ${state.i + 1} / ${state.total}`;
     el.qLevel.textContent = t(phaseLabels()[state.phase].sub);
     el.qText.textContent = q.q;
     if (state.ud && !reduced) {
@@ -942,10 +1152,13 @@
     if (state.mode === "campagne") lancerDe(q);
     renderHp();
     const useChoices = kind === "qcm" || kind === "intrus" || kind === "draw" || kind === "vf";
+    /* « Sans devinette dessinée » ne masque pas seulement les questions
+       impossibles : il retire toutes les images, y compris décoratives. */
+    const montrerArt = kind === "draw" && !opts.noart;
     el.choices.hidden = !useChoices;
     el.spell.hidden = kind !== "spell";
     el.chrono.hidden = kind !== "chrono";
-    el.art.hidden = kind !== "draw";
+    el.art.hidden = !montrerArt;
     el.choices.className = "choices"
       + (kind === "vf" ? " choices--vf" : "")
       + (kind === "intrus" ? " choices--grid" : "");
@@ -954,7 +1167,19 @@
     chronoPicked = [];
 
     if (kind === "draw") {
-      el.art.innerHTML = (window.HQ_ART || {})[q.art] || "";
+      el.art.innerHTML = montrerArt ? ((window.HQ_ART || {})[q.art] || "") : "";
+      /* Le dessin reste décoratif pour un lecteur d'écran : cette note dit
+         franchement s'il manque quelque chose, au lieu de laisser deviner. */
+      el.artNote.hidden = false;
+      el.artNote.textContent = t(!montrerArt
+        ? "Le dessin est masqué : la question se répond au texte seul."
+        : q.needsArt
+          ? "Cette question repose entièrement sur un dessin. Le réglage « Sans devinette dessinée » l'écarte du tirage."
+          : "Un dessin au trait accompagne la question ; il n'est pas nécessaire pour répondre.");
+    } else {
+      el.art.innerHTML = "";
+      el.artNote.hidden = true;
+      el.artNote.textContent = "";
     }
 
     if (kind === "spell") {
@@ -978,7 +1203,7 @@
     }
 
     /* L'horloge de Vecna sonne à mi-parcours dans le Monde à l'Envers. */
-    if (state.ud && !sansFin() && state.i === TOTAL / 2) {
+    if (state.ud && !sansFin() && state.i === Math.floor(state.total / 2)) {
       sfx.chime(0); sfx.chime(1);
       flash("L'horloge sonne");
     }
@@ -1003,9 +1228,13 @@
     renderJokers();
 
     const q = currentQuestion();
-    const elapsed = (state.duration - Math.max(0, state.deadline - performance.now())) / 1000;
-    state.times.push(Math.min(elapsed, state.duration / 1000));
+    const elapsed = state.relax
+      ? (performance.now() - state.start) / 1000
+      : Math.min((state.duration - Math.max(0, state.deadline - performance.now())) / 1000,
+        state.duration / 1000);
+    state.times.push(elapsed);
     const ok = choice === q.correct;
+    noterReponse(q, ok);
 
     if (q.type === "spell") {
       renderSpellSlots(true);
@@ -1067,7 +1296,7 @@
 
     const fini = state.mode === "campagne"
       ? state.i === CAMPAGNE_LONGUEUR - 1
-      : (!sansFin() && state.i === TOTAL - 1);
+      : (!sansFin() && state.i === state.total - 1);
     const last = state.over || fini;
     el.btnNext.hidden = false;
     el.btnNext.textContent = t(last ? "Voir le verdict" : "Suivant");
@@ -1117,7 +1346,7 @@
     sfx.click();
     if (state.over) return finish();
     state.i++;
-    if (!sansFin() && state.i >= TOTAL) return finish();
+    if (!sansFin() && state.i >= state.total) return finish();
     if (state.mode === "campagne" && state.i >= CAMPAGNE_LONGUEUR) return finish();
     /* En duel, on interpose l'écran de passage avant d'afficher la question. */
     if (state.mode === "duel") { showRelay(); return; }
@@ -1145,13 +1374,14 @@
   const ZERO_RANK = {
     name: "Le Démogorgon",
     wall: "ZERO",
+    tone: "#e8112d",
     line: "Zéro sur douze. Statistiquement, il faut le faire exprès. La conclusion s'impose : le monstre, c'est vous."
   };
 
   const DUEL_RANKS = [
-    { name: "Match nul", wall: "EGALITE", line: "Personne ne cède. Il va falloir rejouer, et cette fois sans excuses." },
-    { name: "Joueur 1 l'emporte", wall: "PREMIER", line: "La victoire est nette. Le sous-sol des Wheeler a un nouveau maître." },
-    { name: "Joueur 2 l'emporte", wall: "SECOND", line: "Retourné la situation depuis le siège du passager. Élégant." }
+    { name: "Match nul", wall: "EGALITE", tone: "#8c92a6", line: "Personne ne cède. Il va falloir rejouer, et cette fois sans excuses." },
+    { name: "Joueur 1 l'emporte", wall: "PREMIER", tone: "#ffb648", line: "La victoire est nette. Le sous-sol des Wheeler a un nouveau maître." },
+    { name: "Joueur 2 l'emporte", wall: "SECOND", tone: "#3aa8ff", line: "Retourné la situation depuis le siège du passager. Élégant." }
   ];
 
   const pickRank = () => {
@@ -1161,6 +1391,11 @@
     }
     if (state.mode === "campagne") {
       return CAMPAIGN_RANKS.find((r) => state.i >= r.min && state.i <= r.max) || CAMPAIGN_RANKS[0];
+    }
+    /* La revanche n'a pas de longueur fixe : on ramène le score sur douze. */
+    if (state.mode === "revanche") {
+      const eq = Math.round((state.score / Math.max(1, state.total)) * TOTAL);
+      return eq === 0 ? ZERO_RANK : (RANKS.find((r) => eq >= r.min && eq <= r.max) || RANKS[0]);
     }
     const table = state.mode === "survie" ? SURVIVAL_RANKS : RANKS;
     if (state.mode !== "survie" && state.score === 0) return ZERO_RANK;
@@ -1208,16 +1443,23 @@
          <div class="stat"><b>${Math.max(0, state.hp)}</b><span>${t("Points de vie")}</span></div>
          <div class="stat"><b>${state.score}</b><span>${t("Bonnes réponses")}</span></div>
          <div class="stat"><b>${avg}s</b><span>${t("Temps moyen")}</span></div>`
-      : `<div class="stat"><b>${state.score}/${TOTAL}</b><span>${t(unit)}</span></div>
+      : state.mode === "revanche"
+      ? `<div class="stat"><b>${state.score}/${state.total}</b><span>${t("Réparées")}</span></div>
+         <div class="stat"><b>${idsRates().length}</b><span>${t("Reste au carnet")}</span></div>
+         <div class="stat"><b>${state.best}</b><span>${t("Meilleure série")}</span></div>
+         <div class="stat"><b>${avg}s</b><span>${t("Temps moyen")}</span></div>`
+      : `<div class="stat"><b>${state.score}/${state.total}</b><span>${t(unit)}</span></div>
          <div class="stat"><b>${state.best}</b><span>${t("Meilleure série")}</span></div>
          <div class="stat"><b>${avg}s</b><span>${t("Temps moyen")}</span></div>
          <div class="stat"><b>${state.timeouts}</b><span>${t("Dévoré·e par le chrono")}</span></div>`;
 
+    renderRivalResult();
+    renderRevanche();
     show("result");
     keepAwake(false);
     recordGame(rank);
 
-    const parfait = state.mode === "survie" ? state.score >= 20 : state.score === TOTAL;
+    const parfait = state.mode === "survie" ? state.score >= 20 : state.score === state.total;
     if (parfait) { celebrate(state.ud ? "🩸" : "🧇"); sfx.win(); flash("Sans la moindre fausse note"); }
     else if (state.score >= (state.mode === "survie" ? 10 : 9)) sfx.win();
 
@@ -1241,8 +1483,12 @@
     if (qualified) { await sleep(500); openInitials(); }
   }
 
-  const challengeURL = () =>
-    `${location.origin}${location.pathname}?d=${defiSeed.toString(36)}`;
+  const challengeURL = (avecResultat = false) => {
+    const base = `${location.origin}${location.pathname}?d=${defiSeed.toString(36)}`;
+    if (!avecResultat || !state.marks.length) return base;
+    const nom = store.get("hq.ini", "");
+    return `${base}&r=${codeMarks()}${nom ? `&n=${nom}` : ""}`;
+  };
 
   function shareText() {
     const grid = state.marks.slice(-24).reduce((acc, m, i) => {
@@ -1254,9 +1500,11 @@
       ? `Hawkins Quiz — ${t("Survie")} : ${state.score} ${t("questions tenues")} ${lastUD ? "🙃" : "🧇"}`
       : lastMode === "duel"
         ? `Hawkins Quiz — ${t("Duel")} : ${state.duel[0]} — ${state.duel[1]}`
+      : lastMode === "revanche"
+        ? `Hawkins Quiz — ${t("Revanche")} : ${state.score}/${state.total} ${t("réparées")}`
       : lastMode === "defi"
-        ? `Hawkins Quiz — ${isReceived ? t("Défi reçu") : `${t("Défi nº")} ${dayN}`} : ${state.score}/${TOTAL} ${lastUD ? "🙃" : "🧇"}`
-        : `Hawkins Quiz — ${state.score}/${TOTAL} ${lastUD ? "🙃" : "🧇"}`;
+        ? `Hawkins Quiz — ${isReceived ? t("Défi reçu") : `${t("Défi nº")} ${dayN}`} : ${state.score}/${state.total} ${lastUD ? "🙃" : "🧇"}`
+        : `Hawkins Quiz — ${state.score}/${state.total} ${lastUD ? "🙃" : "🧇"}`;
     const jok = state.used.size ? `  ·  ${state.used.size} ${t(state.used.size > 1 ? "jokers" : "joker")}` : "";
     const serie = lastMode === "defi" && !isReceived && currentStreak()?.n > 1
       ? `${t("Série :")} ${currentStreak().n} ${t("jours")}` : "";
@@ -1267,8 +1515,8 @@
       "",
       grid,
       "",
-      t(lastMode === "defi" ? "Même paquet, même chance. À vous :" : "Survivrez-vous au Monde à l'Envers ?"),
-      lastMode === "defi" ? challengeURL() : "https://sebplace.github.io/hawkins-quiz/"
+      t(lastMode === "defi" ? "Même paquet, même score à battre. À vous :" : "Survivrez-vous au Monde à l'Envers ?"),
+      lastMode === "defi" ? challengeURL(true) : "https://sebplace.github.io/hawkins-quiz/"
     ].join("\n");
   }
 
@@ -1280,10 +1528,15 @@
     el.initials.hidden = true;
     el.board.hidden = true;
     el.relay.hidden = true;
+    el.rivalResult.hidden = true;
+    const deck = buildDeck();
     Object.assign(state, {
-      mode, deck: buildDeck(), i: 0, score: 0, streak: 0, best: 0,
+      mode, deck, i: 0, score: 0, streak: 0, best: 0,
       timeouts: 0, times: [], marks: [], locked: true, phase: 0, ud: udOn, over: false,
-      used: new Set(), frozen: false, frozenLeft: 0, duel: [0, 0], hp: HP_MAX, roll: 0
+      used: new Set(), frozen: false, frozenLeft: 0, duel: [0, 0], hp: HP_MAX, roll: 0,
+      /* Le défi du jour garde son chrono : sinon la comparaison n'a plus de sens. */
+      relax: opts.relax && mode !== "defi",
+      total: mode === "revanche" ? Math.max(1, deck.length) : TOTAL
     });
     el.score.textContent = "0";
     el.scoreIcon.textContent = udOn ? "🩸" : "🧇";
@@ -1305,7 +1558,15 @@
     enquete: { a: "#e8112d", b: "#ffb648", bg: "#0b0a10" },
     survie: { a: "#e8112d", b: "#ffb648", bg: "#0b0a10" },
     defi: { a: "#3aa8ff", b: "#7ef9d0", bg: "#080b12" },
+    revanche: { a: "#7ef9d0", b: "#3aa8ff", bg: "#07100e" },
     ud: { a: "#b14cff", b: "#ff3b7b", bg: "#06030c" }
+  };
+
+  /* Assombrit une couleur pour le fond, sans dépendre du CSS. */
+  const teinte = (hex, k) => {
+    const n = parseInt(hex.slice(1), 16);
+    return `rgb(${Math.round(((n >> 16) & 255) * k)},${
+      Math.round(((n >> 8) & 255) * k)},${Math.round((n & 255) * k)})`;
   };
 
   async function buildCard() {
@@ -1314,11 +1575,13 @@
     c.width = W; c.height = H;
     const x = c.getContext("2d");
     const pal = lastUD ? PALETTE.ud : (PALETTE[lastMode] || PALETTE.enquete);
+    /* La carte prend la couleur du rang obtenu : deux parties, deux cartes. */
+    const tone = (lastRank && lastRank.tone) || pal.a;
 
     try { await document.fonts.ready; } catch { /* polices système */ }
 
     const bg = x.createRadialGradient(W / 2, -120, 60, W / 2, H * .55, H);
-    bg.addColorStop(0, lastUD ? "#170a2b" : "#1a1420");
+    bg.addColorStop(0, teinte(tone, .3));
     bg.addColorStop(.55, pal.bg);
     bg.addColorStop(1, "#04040a");
     x.fillStyle = bg; x.fillRect(0, 0, W, H);
@@ -1343,8 +1606,8 @@
     /* Titre, contour seul comme dans l'app */
     x.font = '400 140px "Rozha One", Georgia, serif';
     x.textAlign = "center";
-    x.lineWidth = 4; x.strokeStyle = pal.a;
-    x.shadowColor = pal.a; x.shadowBlur = 38;
+    x.lineWidth = 4; x.strokeStyle = tone;
+    x.shadowColor = tone; x.shadowBlur = 38;
     x.strokeText("HAWKINS", W / 2, 270);
     x.font = '400 58px "Rozha One", Georgia, serif';
     x.lineWidth = 3;
@@ -1353,23 +1616,35 @@
 
     /* Bandeau du mode */
     const modeTxt = lastMode === "survie" ? t("MODE SURVIE")
+      : lastMode === "revanche" ? t("REVANCHE")
+      : lastMode === "campagne" ? t("CAMPAGNE")
+      : lastMode === "duel" ? t("DUEL")
       : lastMode === "defi" ? (isReceived ? t("DÉFI REÇU") : `${t("DÉFI Nº")} ${dayN}`)
       : t("ENQUÊTE");
     center(modeTxt + (lastUD ? `  ·  ${t("MONDE À L'ENVERS")}` : ""), 410,
       '700 24px "Space Grotesk", sans-serif', pal.b);
 
     /* Score */
-    const scoreTxt = lastMode === "survie" ? `${state.score}` : `${state.score}/${TOTAL}`;
+    const scoreTxt = lastMode === "survie" ? `${state.score}`
+      : lastMode === "duel" ? `${state.duel[0]}—${state.duel[1]}`
+      : `${state.score}/${state.total}`;
     center(scoreTxt, 620, '400 190px "Rozha One", Georgia, serif', "#f3ece0", 30);
-    center(t(lastMode === "survie" ? "QUESTIONS TENUES" : (lastUD ? "GOUTTES" : "GAUFRES")), 672,
+    center(t(lastMode === "survie" ? "QUESTIONS TENUES"
+      : lastMode === "revanche" ? "RÉPARÉES"
+      : (lastUD ? "GOUTTES" : "GAUFRES")), 672,
       '500 24px "Space Grotesk", sans-serif', "#8c92a6");
 
     /* Rang */
     x.font = '400 76px "Rozha One", Georgia, serif';
-    x.lineWidth = 2.5; x.strokeStyle = pal.a;
-    x.shadowColor = pal.a; x.shadowBlur = 26;
+    x.lineWidth = 2.5; x.strokeStyle = tone;
+    x.shadowColor = tone; x.shadowBlur = 26;
     x.strokeText(lastRank ? t(lastRank.name) : "—", W / 2, 790);
     x.shadowBlur = 0;
+
+    /* Filet de la couleur du rang, pour que deux cartes ne se ressemblent pas */
+    x.strokeStyle = tone; x.lineWidth = 3; x.globalAlpha = .5;
+    x.beginPath(); x.moveTo(W / 2 - 150, 812); x.lineTo(W / 2 + 150, 812); x.stroke();
+    x.globalAlpha = 1;
 
     /* Phrase du rang, sur deux lignes au besoin */
     const words = (lastRank ? t(lastRank.line) : "").split(" ");
@@ -1399,7 +1674,7 @@
       const late = m === "⏳";
 
       x.fillStyle = ok ? "rgba(255,182,72,.16)" : late ? "rgba(255,255,255,.05)" : "rgba(232,17,45,.16)";
-      x.strokeStyle = ok ? pal.b : late ? "#6a7188" : "#e8112d";
+      x.strokeStyle = ok ? tone : late ? "#6a7188" : "#e8112d";
       x.lineWidth = 3;
       x.beginPath(); x.roundRect(px, py, cell, cell, 16); x.fill(); x.stroke();
 
@@ -1423,7 +1698,7 @@
     });
 
     /* Pied */
-    const foot = lastMode === "defi" ? challengeURL().replace(/^https?:\/\//, "") : "sebplace.github.io/hawkins-quiz";
+    const foot = lastMode === "defi" ? challengeURL(true).replace(/^https?:\/\//, "") : "sebplace.github.io/hawkins-quiz";
     center(foot, H - 110, '500 26px "Space Grotesk", sans-serif', "#6a7188");
     center(t("Projet de fan non officiel · sans affiliation avec Netflix"), H - 64,
       '400 20px "Space Grotesk", sans-serif', "#4d5468");
@@ -1561,11 +1836,23 @@
   el.btnCard.addEventListener("click", shareCard);
   el.iniBack.addEventListener("click", popInitial);
   el.iniOk.addEventListener("click", commitInitials);
-  el.spellBack.addEventListener("click", popSpell);
-  el.chronoBack.addEventListener("click", popChrono);
-  el.joker5050.addEventListener("click", joker5050);
-  el.jokerTime.addEventListener("click", jokerTime);
-  el.jokerAv.addEventListener("click", jokerAv);
+
+  /* Ces cinq boutons vivent dans des blocs que la traduction réécrit en
+     entier : on délègue, sinon les écouteurs partent avec l'ancien HTML. */
+  const DELEGUES = {
+    spellBack: popSpell, chronoBack: popChrono,
+    joker5050, jokerTime, jokerAv
+  };
+  document.addEventListener("click", (e) => {
+    const node = e.target.closest?.("#spellBack,#chronoBack,#joker5050,#jokerTime,#jokerAv");
+    if (node && !node.disabled) DELEGUES[node.id]?.();
+  });
+
+  el.modeRevanche.addEventListener("click", () => { sfx.click(); setMode("revanche"); });
+  el.optRelax.addEventListener("click", () => { sfx.click(); toggleOpt("relax"); });
+  el.optParty.addEventListener("click", () => { sfx.click(); toggleOpt("party"); });
+  el.optLisible.addEventListener("click", () => { sfx.click(); toggleOpt("lisible"); });
+  el.optNoart.addEventListener("click", () => { sfx.click(); toggleOpt("noart"); });
   el.btnStats.addEventListener("click", () => { sfx.click(); renderStats(); show("stats"); });  el.btnStatsBack.addEventListener("click", () => { sfx.click(); show("intro"); });
   el.btnWipe.addEventListener("click", wipeData);
   el.seasons.forEach((b) => b.addEventListener("click", () => { sfx.click(); toggleSeason(Number(b.dataset.s)); }));
@@ -1661,33 +1948,45 @@
     if (n) n.textContent = QUESTIONS.length;
   };
   majBanque();
-  const enOK = anglaisJouable();
-  el.btnLang.hidden = !enOK;
-  if (!enOK && i18n.lang === "en") i18n.set("fr");
+  /* Une langue n'apparaît dans la bascule que si sa banque est complète.
+     Le bouton affiche la langue VERS laquelle on va, pas la langue active. */
+  const LANG_LABEL = { fr: "FR", en: "EN", nl: "NL" };
+  const LANG_ARIA = {
+    fr: "Passer en français",
+    en: "Switch to English",
+    nl: "Overschakelen naar het Nederlands"
+  };
+  const LANGUES = ["fr", ...i18n.SUPPORTED.filter((l) => l !== "fr" && langueJouable(l))];
+  el.btnLang.hidden = LANGUES.length < 2;
+  if (!LANGUES.includes(i18n.lang)) i18n.set("fr");
+  const suivante = () => LANGUES[(LANGUES.indexOf(i18n.lang) + 1) % LANGUES.length];
   const majLangue = () => {
-    el.langLabel.textContent = i18n.lang === "en" ? "FR" : "EN";
-    el.btnLang.setAttribute("aria-label",
-      i18n.lang === "en" ? "Passer en français" : "Switch to English");
+    el.langLabel.textContent = LANG_LABEL[suivante()];
+    el.btnLang.setAttribute("aria-label", LANG_ARIA[suivante()]);
   };
   el.btnLang.addEventListener("click", () => {
     sfx.click();
-    i18n.set(i18n.lang === "en" ? "fr" : "en");
+    i18n.set(suivante());
     majLangue();
     renderSeasons(); renderDefi(); renderStreak(); renderSecrets();
+    renderRival(); renderRevanche(); appliquerOpts();
     majBanque();
-    setMode(state.mode);
+    setMode(mode);
   });
-  if (i18n.lang === "en") i18n.appliquer();
+  if (i18n.lang !== "fr") i18n.appliquer();
   majBanque();
   majLangue();
 
   el.udToggle.hidden = !udUnlocked;
   if (udUnlocked) setUD(udOn, true);
   purgeOldChallenges();
+  appliquerOpts();
   renderSecrets();
   renderSeasons();
   renderDefi();
   renderStreak();
+  renderRival();
+  renderRevanche();
   setMode(urlSeed !== null ? "defi" : "enquete");
 
   setInterval(refreshDay, 60000);
